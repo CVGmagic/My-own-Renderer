@@ -1,2 +1,0 @@
-C:/Users/cvgma/VSCodeProjects/GitHubProjects/My-own-Renderer/build/CMakeFiles/edit_cache.dir
-C:/Users/cvgma/VSCodeProjects/GitHubProjects/My-own-Renderer/build/CMakeFiles/rebuild_cache.dir
