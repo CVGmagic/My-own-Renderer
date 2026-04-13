@@ -3,9 +3,14 @@ project(Renderer)
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glad CONFIG REQUIRED)
+include_directories(include)
+include_directories(libs/glfw/include)
 
-add_executable(app src/main.cpp)
+add_executable(app
+    src/main.cpp
+    src/glad.c
+)
 
-target_link_libraries(app PRIVATE glfw glad::glad)
+target_link_directories(app PRIVATE libs/glfw/lib-mingw-w64)
+
+target_link_libraries(app glfw3 opengl32 gdi32)
