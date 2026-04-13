@@ -1,0 +1,4 @@
+# ninja log v6
+3	144	7977974813348496	CMakeFiles/app.dir/src/main.cpp.obj	c06524c590a1e794
+41	608	7977974813689705	CMakeFiles/app.dir/src/glad.c.obj	554728999ccd8150
+669	1138	7977974819744548	app.exe	d2040c4892f00bf8
