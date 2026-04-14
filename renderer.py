@@ -3,13 +3,28 @@ import matplotlib.pyplot as plt
 
 
 class Scene:
-    def __init__(self):
+    def __init__(self, cw, ch, vw, vh, d, O):
         self.objects = []
         self.lights = []
+
+        """Controls image resolution"""
+        self.cw: int = cw
+        self.ch: int = ch
+        self.img = np.full((ch, cw, 3), 255, dtype=int)
+
+        """Controls FOV"""
+        self.vw = vw
+        self.vh = vh
+        self.d = d
+
+        """Camera position"""
+        self.O = O
+
 
     def add_objects(self, lst):
         for elem in lst:
             self.objects.append(elem)
+
 
     def add_lights(self, lst):
         for elem in lst:
@@ -49,7 +64,6 @@ class Light:
         self.intensity = intensity
         self.position = position
         self.direction = direction
-
 
 
 def canvas_to_screen(cx: int, cy: int) -> tuple[int]:
@@ -99,24 +113,15 @@ def trace_ray(ray: Ray):
 
 
 
-"""Controls image resolution"""
-cw: int = 500
-ch: int = 500
-img = np.full((ch, cw, 3), 255, dtype=int)
-
-
-"""Controls FOV"""
-vw = 1
-vh = 1
-d = 1
-
-
-"""Camera position"""
-O = np.array([0, 0, 0])
-
-
 """List of Objects"""
-scene = Scene()
+scene = Scene(
+    cw = 500,
+    ch = 500,
+    vw = 1,
+    vh = 1,
+    d = 1,
+    O = np.array([0, 0, 0])
+)
 objects = [
     Sphere(np.array([1, 2, 10]), 1, color=np.array([0, 0, 255])),
     Sphere(np.array([0, 2, 5]), 0.5, color=np.array([255, 0, 0]))
