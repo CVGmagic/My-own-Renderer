@@ -27,12 +27,13 @@ class Scene:
 
 
     def add_lights(self, lst):
-        for elem in lst:
-            self.lights.append(elem)
+        for obj in lst:
+            obj.set_origin(self.O)
+            self.lights.append(obj)
 
 
 class Ray:
-    def __init__(self, V):
+    def __init__(self, V, O):
         self.D = V - O
         self.length = np.linalg.norm(self.D)
 
@@ -42,8 +43,11 @@ class Sphere:
         self.C = center
         self.r = radius
         self.color = color
+
+    def set_origin(self, O):
+        """Not really necessary, just avoids later recomputation"""
         self.CO = O - self.C
-        self.c = np.dot(self.CO, self.CO) - self.r**2
+        self.c = np.dot(self.CO, self.CO) - self.r ** 2
 
 
     def find_intersections(self, ray: Ray) -> np.ndarray:
@@ -59,40 +63,40 @@ class Sphere:
 
 
 class Light:
-    def __init__(self, type: string, intensity, position=None, direction=None):
+    def __init__(self, type: str, intensity, position=None, direction=None):
         self.type = type
         self.intensity = intensity
         self.position = position
         self.direction = direction
 
 
-def canvas_to_screen(cx: int, cy: int) -> tuple[int]:
+def canvas_to_screen(cx: int, cy: int, scene) -> tuple[int]:
     """Converts canvas coordinates to screen coordinates"""
-    cx += cw // 2
+    cx += scene.cw // 2
     cy *= -1
-    cy += ch // 2
+    cy += scene.ch // 2
     return (cx, cy)
 
 
-def put_pixel(cx: int, cy: int, col: np.ndarray) -> None:
+def put_pixel(cx: int, cy: int, scene: Scene, col: np.ndarray) -> None:
     """Sets the color of a single pixel"""
-    cx, cy = canvas_to_screen(cx, cy)
-    img[cy, cx] = col
+    cx, cy = canvas_to_screen(cx, cy, scene)
+    scene.img[cy, cx] = col
     return
 
 
-def canvas_to_viewport(cx: int, cy: int) -> np.ndarray:
+def canvas_to_viewport(cx: int, cy: int, scene) -> np.ndarray:
     """Converts canvas coordinates to viewport coordinates"""
-    if (d != 1):
+    if (scene.d != 1):
         raise ValueError("This function assumes d = 1")
 
-    vx = cx * vw / cw
-    vy = cy * vh / ch
-    vz = d
+    vx = cx * scene.vw / scene.cw
+    vy = cy * scene.vh / scene.ch
+    vz = scene.d
     return np.array([vx, vy, vz])
 
 
-def trace_ray(ray: Ray):
+def trace_ray(ray: Ray, scene):
     """Traces the rays path and returns the closest intersected Object"""
     min_dist: float = np.inf
     closest = None
@@ -112,8 +116,17 @@ def trace_ray(ray: Ray):
     return closest
 
 
+def render_scene(scene):
+    for cx in range(-scene.cw // 2, scene.cw // 2):
+        for cy in range(-scene.ch // 2 + 1, scene.ch // 2 + 1):
+            V = canvas_to_viewport(cx, cy, scene)
+            ray = Ray(V, O)
+            obj = trace_ray(ray, scene)
+            if obj:
+                put_pixel(cx, cy, scene, col=obj.color)
 
-"""List of Objects"""
+
+"""Initialize scene"""
 scene = Scene(
     cw = 500,
     ch = 500,
@@ -122,21 +135,13 @@ scene = Scene(
     d = 1,
     O = np.array([0, 0, 0])
 )
-objects = [
+
+scene.add_objects([
     Sphere(np.array([1, 2, 10]), 1, color=np.array([0, 0, 255])),
     Sphere(np.array([0, 2, 5]), 0.5, color=np.array([255, 0, 0]))
-]
-scene.add_objects(objects)
+])
 
+render_scene(scene)
 
-
-for cx in range(-cw // 2, cw // 2):
-    for cy in range(-ch // 2 + 1, ch // 2 + 1):
-        V = canvas_to_viewport(cx, cy)
-        ray = Ray(V)
-        obj = trace_ray(ray)
-        if obj:
-            put_pixel(cx, cy, col=obj.color)
-
-plt.imshow(img)
+plt.imshow(scene.img)
 plt.show()
