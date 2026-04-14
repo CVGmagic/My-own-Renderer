@@ -2,26 +2,54 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-"""Controls image resolution"""
-cw: int = 100
-ch: int = 200
-img = np.zeros((h, w, 3), dtype=int)
+class Scene:
+    def __init__(self):
+        self.objects = []
+        self.lights = []
+
+    def add_objects(self, lst):
+        for elem in lst:
+            self.objects.append(elem)
+
+    def add_lights(self, lst):
+        for elem in lst:
+            self.lights.append(elem)
 
 
-"""Controls FOV"""
-vw = 1
-vh = 1
-d = 1
+class Ray:
+    def __init__(self, V):
+        self.D = V - O
+        self.length = np.linalg.norm(self.D)
 
 
-"""Camera position"""
-O = np.array([0, 0, 0])
+class Sphere:
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0])):
+        self.C = center
+        self.r = radius
+        self.color = color
+        self.CO = O - self.C
+        self.c = np.dot(self.CO, self.CO) - self.r**2
 
 
-"""List of Objects"""
-objects = [
-    Sphere(np.ndarray([1, 2, 10]), 1.5)
-]
+    def find_intersections(self, ray: Ray) -> np.ndarray:
+        """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
+        a = np.dot(ray.D, ray.D)
+        b = 2 * np.dot(self.CO, ray.D)
+        c = self.c
+
+        l1 = (-b + np.sqrt(b**2 - 4 * a * c)) / (2 * a)
+        l2 = (-b - np.sqrt(b**2 - 4 * a * c)) / (2 * a)
+
+        return np.array([l1, l2])
+
+
+class Light:
+    def __init__(self, type: string, intensity, position=None, direction=None):
+        self.type = type
+        self.intensity = intensity
+        self.position = position
+        self.direction = direction
+
 
 
 def canvas_to_screen(cx: int, cy: int) -> tuple[int]:
@@ -47,33 +75,63 @@ def canvas_to_viewport(cx: int, cy: int) -> np.ndarray:
     vx = cx * vw / cw
     vy = cy * vh / ch
     vz = d
-    return np.ndarray()
+    return np.array([vx, vy, vz])
 
 
-class Ray:
-    def __init__(self, V):
-        self.D = V - O
+def trace_ray(ray: Ray):
+    """Traces the rays path and returns the closest intersected Object"""
+    min_dist: float = np.inf
+    closest = None
+
+    for obj in scene.objects:
+        intersections = obj.find_intersections(ray)
+
+        for t in intersections:
+            if np.isnan(t) or t < 0:
+                continue
+
+            dist: float = t * ray.length
+            if dist < min_dist:
+                min_dist = dist
+                closest = obj
+
+    return closest
 
 
-class Sphere:
-    def __init__(self, C: np.ndarray, r: float):
-        self.C = C
-        self.r = r
-        self.CO = O - self.C
-        self.c = np.dot(CO, CO) - r**2
+
+"""Controls image resolution"""
+cw: int = 500
+ch: int = 500
+img = np.full((ch, cw, 3), 255, dtype=int)
 
 
-    def find_intersections(self, ray: Ray) -> tuple[int]:
-        """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
-        a = np.dot(ray.D, ray.D)
-        b = 2 * np.dot(CO, D)
-        c = self.c
+"""Controls FOV"""
+vw = 1
+vh = 1
+d = 1
 
-        l1 = (-b + np.sqrt(b**2 - 4 * a * c)) / (2 * a)
-        l2 = (-b - np.sqrt(b**2 - 4 * a * c)) / (2 * a)
 
-        return (l1, l2)
+"""Camera position"""
+O = np.array([0, 0, 0])
 
+
+"""List of Objects"""
+scene = Scene()
+objects = [
+    Sphere(np.array([1, 2, 10]), 1, color=np.array([0, 0, 255])),
+    Sphere(np.array([0, 2, 5]), 0.5, color=np.array([255, 0, 0]))
+]
+scene.add_objects(objects)
+
+
+
+for cx in range(-cw // 2, cw // 2):
+    for cy in range(-ch // 2 + 1, ch // 2 + 1):
+        V = canvas_to_viewport(cx, cy)
+        ray = Ray(V)
+        obj = trace_ray(ray)
+        if obj:
+            put_pixel(cx, cy, col=obj.color)
 
 plt.imshow(img)
 plt.show()
