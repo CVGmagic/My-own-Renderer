@@ -18,6 +18,11 @@ d = 1
 O = np.array([0, 0, 0])
 
 
+"""List of Objects"""
+objects = [
+    Sphere(np.ndarray([1, 2, 10]), 1.5)
+]
+
 
 def canvas_to_screen(cx: int, cy: int) -> tuple[int]:
     """Converts canvas coordinates to screen coordinates"""
