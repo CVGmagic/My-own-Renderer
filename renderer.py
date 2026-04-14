@@ -55,12 +55,19 @@ class Sphere:
         self.C = C
         self.r = r
         self.CO = O - self.C
+        self.c = np.dot(CO, CO) - r**2
 
 
-    def find_intersections(self, ray: Ray):
+    def find_intersections(self, ray: Ray) -> tuple[int]:
+        """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
         a = np.dot(ray.D, ray.D)
         b = 2 * np.dot(CO, D)
-        c = np.dot(Co, CO) - r**2
+        c = self.c
+
+        l1 = (-b + np.sqrt(b**2 - 4 * a * c)) / (2 * a)
+        l2 = (-b - np.sqrt(b**2 - 4 * a * c)) / (2 * a)
+
+        return (l1, l2)
 
 
 plt.imshow(img)
