@@ -131,30 +131,33 @@ class Light:
         self.direction = direction
 
 
-def canvas_to_screen(cx: int, cy: int, scene) -> tuple[int]:
+@njit
+def canvas_to_screen(cx: int, cy: int, cw: int, ch: int) -> tuple[int]:
     """Converts canvas coordinates to screen coordinates"""
-    cx += scene.cw // 2
+    cx += cw // 2
     cy *= -1
-    cy += scene.ch // 2
+    cy += ch // 2
     return (cx, cy)
 
 
-def put_pixel(cx: int, cy: int, scene: Scene, col: np.ndarray[3]) -> None:
+@njit
+def put_pixel(img, cx: int, cy: int, cw: int, ch: int, col: np.ndarray[3]) -> None:
     """Sets the color of a single pixel"""
-    cx, cy = canvas_to_screen(cx, cy, scene)
-    scene.img[cy, cx] = col
+    cx, cy = canvas_to_screen(cx, cy, cw, ch)
+    img[cy, cx] = col
     return
 
 
-def canvas_to_viewport(cx: int, cy: int, scene: Scene) -> np.ndarray:
+@njit
+def canvas_to_viewport(cx: int, cy: int, cw: int, ch: int, vw: float, vh: float, d: float) -> np.ndarray[3]:
     """Converts canvas coordinates to viewport coordinates"""
-    if (scene.d != 1):
+    if d != 1:
         raise ValueError("This function assumes d = 1")
 
-    vx = cx * scene.vw / scene.cw
-    vy = cy * scene.vh / scene.ch
-    vz = scene.d
-    return np.array([vx, vy, vz])
+    vx = cx * vw / cw
+    vy = cy * vh / ch
+    vz = d
+    return np.array([vx, vy, vz], dtype=np.float64)
 
 
 @njit
@@ -371,6 +374,52 @@ def benchmark(scene, runs=10, warmup=2):
     print("Max:", max(times))
 
 
+@njit
+def fill_image(
+        bgcol,
+        max_rec_depth,
+        img,
+        cw,
+        ch,
+        vw,
+        vh,
+        d,
+        O,
+        obj_types,  # Stores the type of each Object
+        colors,
+        speculars,
+        reflectives,
+        sphere_centers,
+        sphere_radii,
+        light_types,
+        light_intensities,
+        light_directions,
+        light_positions
+) -> None:
+    """Fills the image in"""
+    for cx in range(-cw // 2, cw // 2):
+        for cy in range(-ch // 2 + 1, ch // 2 + 1):
+            V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
+            D = V - O
+            color = trace_ray(
+                                O,
+                                D,
+                                bgcol,
+                                max_rec_depth,
+                                obj_types,
+                                colors,
+                                speculars,
+                                reflectives,
+                                sphere_centers,
+                                sphere_radii,
+                                light_types,
+                                light_intensities,
+                                light_directions,
+                                light_positions
+            )
+            put_pixel(img, cx, cy, cw, ch, col=color)
+
+
 def render_scene(scene) -> None:
     """Renders a scene from the given scene object"""
     scene.compile()
@@ -405,38 +454,33 @@ def render_scene(scene) -> None:
     light_directions = scene.light_directions
     light_positions = scene.light_positions
 
-
-    for cx in range(-cw // 2, cw // 2):
-        for cy in range(-ch // 2 + 1, ch // 2 + 1):
-            V = canvas_to_viewport(cx, cy, scene)
-            D = V - O
-            color = trace_ray(
-                                O,
-                                D,
-                                bgcol,
-                                max_rec_depth,
-                                obj_types,
-                                colors,
-                                speculars,
-                                reflectives,
-                                sphere_centers,
-                                sphere_radii,
-                                light_types,
-                                light_intensities,
-                                light_directions,
-                                light_positions,
-            )
-            put_pixel(cx, cy, scene, col=color)
-
-        #(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
-
-
+    fill_image(
+        bgcol,
+        max_rec_depth,
+        img,
+        cw,
+        ch,
+        vw,
+        vh,
+        d,
+        O,
+        obj_types,
+        colors,
+        speculars,
+        reflectives,
+        sphere_centers,
+        sphere_radii,
+        light_types,
+        light_intensities,
+        light_directions,
+        light_positions
+    )
 
 
 """Initialize scene"""
 scene = Scene(
-    cw = 500,
-    ch = 500,
+    cw = 300,
+    ch = 300,
     vw = 1,
     vh = 1,
     d = 1,
@@ -479,9 +523,10 @@ scene.add_lights(
     Light(type="point", position=np.array([2, 1, 0]), intensity=0.6), # 0.6
     Light(type="directional", intensity=0.1, direction=np.array([1, 4, 4])) # 0.2
 )
-scene.img.fill(255)
 
+scene.img.fill(255)
 benchmark(scene)
+
 #render_scene(scene)
 
 plt.imshow(scene.img)

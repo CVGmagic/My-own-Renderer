@@ -13,5 +13,8 @@ Ray class removed
 All classes removed
 31 s
 
-Mostly numba compiled
+Mostly Numba compiled
 0.76 s
+
+Fully Numba compiled
+0.41 s
