@@ -228,6 +228,28 @@ def norm(v):
     return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
 
 
+def benchmark(scene, runs=5, warmup=2):
+    import time
+
+    # warmup
+    for _ in range(warmup):
+        scene.img.fill(255)
+        render_scene(scene)
+
+    times = []
+    for _ in range(runs):
+        scene.img.fill(255)
+        start = time.perf_counter()
+        render_scene(scene)
+        end = time.perf_counter()
+        times.append(end - start)
+
+    print("Times:", times)
+    print("Avg:", sum(times)/len(times))
+    print("Min:", min(times))
+    print("Max:", max(times))
+
+
 """Initialize scene"""
 scene = Scene(
     cw = 300,
@@ -277,7 +299,7 @@ scene.add_lights(
 scene.img.fill(255)
 
 
-cProfile.run("render_scene(scene)")
+benchmark(scene)
 
 plt.imshow(scene.img)
 plt.show()
