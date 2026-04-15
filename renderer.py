@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cProfile
+import math
 
 
 class Scene:
@@ -64,7 +66,7 @@ class Sphere:
 
     def get_normal_vector(self, P: np.ndarray) -> np.ndarray:
         N = P - self.C
-        N /= np.linalg.norm(N)
+        N /= math.sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2])
         return N
 
 
@@ -173,7 +175,7 @@ def render_scene(scene) -> None:
             color = trace_ray(ray, scene)
             put_pixel(cx, cy, scene, col=color)
 
-        print(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
+        #(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
 
 
 def compute_lighting(P, N, V, s, scene) -> float:
@@ -202,21 +204,28 @@ def compute_lighting(P, N, V, s, scene) -> float:
 
             # Diffuse
             cos_a = np.dot(N, L)
+            norm_L = math.sqrt(L[0] * L[0] + L[1] * L[1] + L[2] * L[2])
             if cos_a > 0:
-                i += light.intensity * cos_a / (np.linalg.norm(N) * np.linalg.norm(L))
+                i += light.intensity * cos_a / norm_L
 
             # Specular
             if s != -1:
                 R = reflect_ray(L, N)
                 r_dot_v = np.dot(R, V)
+                norm_R = math.sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2])
+                norm_V = math.sqrt(V[0] * V[0] + V[1] * V[1] + V[2] * V[2])
                 if r_dot_v > 0:
-                    i += light.intensity * np.pow(r_dot_v / (np.linalg.norm(R) * np.linalg.norm(V)), s)
+                    i += light.intensity * pow(r_dot_v / (norm_R * norm_V), s)
 
     return i
 
 
 def reflect_ray(R, N):
     return 2 * N * np.dot(N, R) - R
+
+
+def norm(v):
+    return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
 
 
 """Initialize scene"""
@@ -265,8 +274,10 @@ scene.add_lights(
     Light(type="point", intensity=0.6, position=np.array([2,1,0])), # 0.6
     Light(type="directional", intensity=0.1, direction=np.array([1, 4, 4])) # 0.2
 )
+scene.img.fill(255)
 
-render_scene(scene)
+
+cProfile.run("render_scene(scene)")
 
 plt.imshow(scene.img)
 plt.show()
