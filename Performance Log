@@ -1,0 +1,12 @@
+Performance Log
+
+Unoptimized
+41 s
+
+Numpy functions replaced
+33 s
+
+Ray class removed
+27 s
+
+

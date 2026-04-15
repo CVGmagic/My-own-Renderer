@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import cProfile
 import math
 from numba import njit
+from object_types import *
+from light_types import *
 
 
 class Scene:
@@ -25,8 +27,19 @@ class Scene:
         """Camera position"""
         self.O = O
 
-        """Array for faster runtime"""
-        self.types = None
+        """Array for faster runtime, will be set using compile"""
+        self.obj_types = None  # Stores the type of each Object
+        self.colors = None
+        self.speculars = None
+        self.reflectives = None
+
+        self.sphere_centers = None
+        self.sphere_radii = None
+
+        self.light_types = None
+        self.light_intensities = None
+        self.light_directions = None
+        self.light_positions = None
 
 
     def add_objects(self, *args):
@@ -40,7 +53,65 @@ class Scene:
 
 
     def compile(self):
-        pass
+        """Turns the object data into lists for performance improvement"""
+        """General object data"""
+        types = np.zeros(len(self.objects))
+        colors = np.zeros((len(self.objects), 3))
+        speculars = np.zeros(len(self.objects))
+        reflectives = np.zeros(len(self.objects))
+
+        self.types = types
+        self.colors = colors
+        self.speculars = speculars
+        self.reflectives = reflectives
+
+        """Sphere data"""
+        sphere_centers = np.zeros((len(self.objects), 3))
+        sphere_radii = np.zeros(len(self.objects))
+
+        for i, obj in enumerate(self.objects):
+
+            colors[i] = obj.color
+            speculars[i] = obj.specular
+            reflectives[i] = obj.reflective
+
+            if type(obj) == Sphere:
+                types[i] = SPHERE
+                sphere_radii[i] = obj.r
+                sphere_centers[i] = obj.C
+
+        self.sphere_centers = sphere_centers
+        self.sphere_radii = sphere_radii
+
+
+        """Light data"""
+        light_types = np.zeros(len(self.lights))
+        light_intensities = np.zeros(len(self.lights))
+        light_directions = np.zeros((len(self.lights), 3))
+        light_positions = np.zeros((len(self.lights), 3))
+
+        for i, light in enumerate(self.lights):
+            light_intensities[i] = light.intensity
+
+            if light.type == "ambient":
+                light_types[i] = AMBIENT
+
+            elif light.type == "point":
+                light_types[i] = POINT
+                light_positions[i] = light.position
+
+            elif light.type == "directional":
+                light_types[i] = DIRECTIONAL
+                light_directions[i] = light.direction
+
+            else:
+                raise TypeError("Invalid light type encountered during compilation")
+
+        self.light_types = light_types
+        self.light_intensities = light_intensities
+        self.light_directions = light_directions
+        self.light_positions = light_positions
+
 
 
 class Sphere:
@@ -167,16 +238,6 @@ def trace_ray(O, D, scene, t_min=0, t_max=np.inf, recursion_depth=0) -> np.ndarr
     return local_color * (1 - r) + reflected_color * r
 
 
-def render_scene(scene) -> None:
-    for cx in range(-scene.cw // 2, scene.cw // 2):
-        for cy in range(-scene.ch // 2 + 1, scene.ch // 2 + 1):
-            V = canvas_to_viewport(cx, cy, scene)
-            D = V - scene.O
-            color = trace_ray(scene.O, D, scene)
-            put_pixel(cx, cy, scene, col=color)
-
-        #(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
-
 
 def compute_lighting(P, N, V, s, scene) -> float:
     """
@@ -249,6 +310,29 @@ def benchmark(scene, runs=5, warmup=2):
     print("Max:", max(times))
 
 
+def render_scene(scene) -> None:
+    """Renders a scene from the given scene object"""
+    scene.compile()
+
+    """Unpack all scene arguments, to avoid object access inside loops for performance reasons"""
+
+
+
+    for cx in range(-scene.cw // 2, scene.cw // 2):
+        for cy in range(-scene.ch // 2 + 1, scene.ch // 2 + 1):
+            V = canvas_to_viewport(cx, cy, scene)
+            D = V - scene.O
+            color = trace_ray(scene.O, D, scene)
+            put_pixel(cx, cy, scene, col=color)
+
+        #(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
+
+
+
+
+
+
+
 """Initialize scene"""
 scene = Scene(
     cw = 300,
@@ -292,13 +376,13 @@ scene.add_objects(
 
 scene.add_lights(
     Light(type="ambient", intensity=0.3), # 0.2
-    Light(type="point", intensity=0.6, position=np.array([2,1,0])), # 0.6
+    Light(type="point", position=np.array([2, 1, 0]), intensity=0.6), # 0.6
     Light(type="directional", intensity=0.1, direction=np.array([1, 4, 4])) # 0.2
 )
 scene.img.fill(255)
 
-benchmark(scene)
-#render_scene(scene)
+#benchmark(scene)
+render_scene(scene)
 
 plt.imshow(scene.img)
 plt.show()
