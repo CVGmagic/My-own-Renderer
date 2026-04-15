@@ -349,7 +349,7 @@ def norm(v):
     return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
 
 
-def benchmark(scene, runs=5, warmup=2):
+def benchmark(scene, runs=10, warmup=2):
     import time
 
     # warmup
