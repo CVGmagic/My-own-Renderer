@@ -1,5 +1,6 @@
 Performance Log
 
+
 Unoptimized
 41 s
 
@@ -9,4 +10,8 @@ Numpy functions replaced
 Ray class removed
 27 s
 
+All classes removed
+31 s
 
+Mostly numba compiled
+0.76 s
