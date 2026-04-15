@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 
 
 class Scene:
-    def __init__(self, cw, ch, vw, vh, d, O, bgcol=np.array([255, 255, 255])):
+    def __init__(self, cw, ch, vw, vh, d, O, bgcol=np.array([0, 0, 0]), max_rec_depth=3):
         self.objects = []
         self.lights = []
         self.bgcol = bgcol
+        self.max_rec_depth = max_rec_depth
 
         """Controls image resolution"""
         self.cw: int = cw
@@ -123,17 +124,44 @@ def closest_intersection(ray, scene, t_min, t_max) -> tuple:
     return closest_obj, closest_t
 
 
-def trace_ray(ray: Ray, scene, t_min=0, t_max=np.inf) -> np.ndarray:
+def exists_intersection(ray, scene, t_min, t_max) -> tuple:
+    """
+        Finds any intersection between a ray and any object between t_min and t_max
+        :return: Bool, telling us if anything was intersected at all
+        """
+    for obj in scene.objects:
+        intersections = obj.find_intersections(ray)
+
+        for t in intersections:
+            if np.isnan(t) or t < t_min or t > t_max:
+                continue
+
+            return True
+
+    return False
+
+
+def trace_ray(ray: Ray, scene, t_min=0, t_max=np.inf, recursion_depth=0) -> np.ndarray:
     """Traces the rays path and returns the closest intersected Object"""
     closest_obj, closest_t = closest_intersection(ray, scene, t_min, t_max)
 
-    if closest_obj:
-        P = ray.O + ray.D * closest_t
-        N = closest_obj.get_normal_vector(P)
-        V = -ray.D
-        return closest_obj.color * compute_lighting(P, N, V, closest_obj.specular, scene)
-    else:
+    if not closest_obj:
         return scene.bgcol
+
+    P = ray.O + ray.D * closest_t
+    N = closest_obj.get_normal_vector(P)
+    V = -ray.D
+    local_color = closest_obj.color * compute_lighting(P, N, V, closest_obj.specular, scene)
+
+    # If object is not reflecctive, or we hit recursion limit, stop
+    r = closest_obj.reflective
+    if r <= 0 or recursion_depth >= scene.max_rec_depth:
+        return local_color
+
+    R = reflect_ray(V, N)
+    reflected_color = trace_ray(Ray(P, R), scene, t_min=0.001, t_max=np.inf, recursion_depth=recursion_depth + 1)
+
+    return local_color * (1 - r) + reflected_color * r
 
 
 def render_scene(scene) -> None:
@@ -144,6 +172,8 @@ def render_scene(scene) -> None:
             ray = Ray(scene.O, D)
             color = trace_ray(ray, scene)
             put_pixel(cx, cy, scene, col=color)
+
+        print(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
 
 
 def compute_lighting(P, N, V, s, scene) -> float:
@@ -177,12 +207,16 @@ def compute_lighting(P, N, V, s, scene) -> float:
 
             # Specular
             if s != -1:
-                R = 2 * N * cos_a - L
+                R = reflect_ray(L, N)
                 r_dot_v = np.dot(R, V)
                 if r_dot_v > 0:
                     i += light.intensity * np.pow(r_dot_v / (np.linalg.norm(R) * np.linalg.norm(V)), s)
 
     return i
+
+
+def reflect_ray(R, N):
+    return 2 * N * np.dot(N, R) - R
 
 
 """Initialize scene"""
@@ -200,31 +234,29 @@ scene.add_objects(
             center=np.array([0, -1, 3]),
             radius=1,
             color=np.array([255, 0, 0]), # Red
-            specular = 500
+            specular = 500,
+            reflective = 0.2
            ),
     Sphere(
             center=np.array([2, 0, 4]),
-            radius=0.5,
+            radius=1,
             color=np.array([0, 0, 255]), # Blue
-            specular = 500
+            specular = 500,
+            reflective = 0.3
            ),
     Sphere(
             center=np.array([-2, 0, 4]),
             radius=1,
             color=np.array([0, 255, 0]), # Green
-            specular = 10
+            specular = 10,
+            reflective = 0.4
            ),
     Sphere(
             center=np.array([0, -5001, 0]),
             radius=5000,
             color=np.array([255, 255, 0]), # Yellow
-            specular = 1000
-    ),
-    Sphere(
-        center = np.array([0, 0.5, 2]),
-        radius = 0.3,
-        color = np.array([255, 105, 180]), # Pink
-        specular = 10000
+            specular = 1000,
+            reflective = 0.5
     )
 )
 
