@@ -198,8 +198,7 @@ def compute_lighting(P, N, V, s, scene) -> float:
                 t_max = np.inf
 
             # Shadow check
-            shadow_sphere, shadow_t = closest_intersection(Ray(P, L), scene, t_min=0.001, t_max=t_max)
-            if shadow_sphere:
+            if exists_intersection(Ray(P, L), scene, t_min=0.001, t_max=t_max):
                 continue
 
             # Diffuse
