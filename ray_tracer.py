@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cProfile
 import math
+from numba import njit
 
 
 class Scene:
@@ -24,6 +25,9 @@ class Scene:
         """Camera position"""
         self.O = O
 
+        """Array for faster runtime"""
+        self.types = None
+
 
     def add_objects(self, *args):
         for obj in args:
@@ -35,11 +39,8 @@ class Scene:
             self.lights.append(light)
 
 
-class Ray:
-    def __init__(self, O, D):
-        self.O = O
-        self.D = D
-        self.length = np.linalg.norm(self.D)
+    def compile(self):
+        pass
 
 
 class Sphere:
@@ -51,11 +52,11 @@ class Sphere:
         self.reflective = reflective
 
 
-    def find_intersections(self, ray: Ray) -> np.ndarray:
+    def find_intersections(self, O, D) -> np.ndarray:
         """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
-        CO = ray.O - self.C
-        a = np.dot(ray.D, ray.D)
-        b = 2 * np.dot(CO, ray.D)
+        CO = O - self.C
+        a = np.dot(D, D)
+        b = 2 * np.dot(CO, D)
         c = np.dot(CO, CO) - self.r ** 2
 
         l1 = (-b + np.sqrt(b**2 - 4 * a * c)) / (2 * a)
@@ -104,7 +105,7 @@ def canvas_to_viewport(cx: int, cy: int, scene) -> np.ndarray:
     return np.array([vx, vy, vz])
 
 
-def closest_intersection(ray, scene, t_min, t_max) -> tuple:
+def closest_intersection(O, D, scene, t_min, t_max) -> tuple:
     """
     Finds the closest intersection between a ray and any object
     :return: The intersected object and the t used to intersect
@@ -113,7 +114,7 @@ def closest_intersection(ray, scene, t_min, t_max) -> tuple:
     closest_t = np.inf
 
     for obj in scene.objects:
-        intersections = obj.find_intersections(ray)
+        intersections = obj.find_intersections(O, D)
 
         for t in intersections:
             if np.isnan(t) or t < t_min or t > t_max:
@@ -126,13 +127,13 @@ def closest_intersection(ray, scene, t_min, t_max) -> tuple:
     return closest_obj, closest_t
 
 
-def exists_intersection(ray, scene, t_min, t_max) -> tuple:
+def exists_intersection(O, D, scene, t_min, t_max) -> tuple:
     """
         Finds any intersection between a ray and any object between t_min and t_max
         :return: Bool, telling us if anything was intersected at all
         """
     for obj in scene.objects:
-        intersections = obj.find_intersections(ray)
+        intersections = obj.find_intersections(O, D)
 
         for t in intersections:
             if np.isnan(t) or t < t_min or t > t_max:
@@ -143,16 +144,16 @@ def exists_intersection(ray, scene, t_min, t_max) -> tuple:
     return False
 
 
-def trace_ray(ray: Ray, scene, t_min=0, t_max=np.inf, recursion_depth=0) -> np.ndarray:
+def trace_ray(O, D, scene, t_min=0, t_max=np.inf, recursion_depth=0) -> np.ndarray:
     """Traces the rays path and returns the closest intersected Object"""
-    closest_obj, closest_t = closest_intersection(ray, scene, t_min, t_max)
+    closest_obj, closest_t = closest_intersection(O, D, scene, t_min, t_max)
 
     if not closest_obj:
         return scene.bgcol
 
-    P = ray.O + ray.D * closest_t
+    P = O + D * closest_t
     N = closest_obj.get_normal_vector(P)
-    V = -ray.D
+    V = -D
     local_color = closest_obj.color * compute_lighting(P, N, V, closest_obj.specular, scene)
 
     # If object is not reflecctive, or we hit recursion limit, stop
@@ -161,7 +162,7 @@ def trace_ray(ray: Ray, scene, t_min=0, t_max=np.inf, recursion_depth=0) -> np.n
         return local_color
 
     R = reflect_ray(V, N)
-    reflected_color = trace_ray(Ray(P, R), scene, t_min=0.001, t_max=np.inf, recursion_depth=recursion_depth + 1)
+    reflected_color = trace_ray(P, R, scene, t_min=0.001, t_max=np.inf, recursion_depth=recursion_depth + 1)
 
     return local_color * (1 - r) + reflected_color * r
 
@@ -171,8 +172,7 @@ def render_scene(scene) -> None:
         for cy in range(-scene.ch // 2 + 1, scene.ch // 2 + 1):
             V = canvas_to_viewport(cx, cy, scene)
             D = V - scene.O
-            ray = Ray(scene.O, D)
-            color = trace_ray(ray, scene)
+            color = trace_ray(scene.O, D, scene)
             put_pixel(cx, cy, scene, col=color)
 
         #(f"{round((cx + scene.cw // 2) / scene.cw * 100, 2)}%")
@@ -198,7 +198,7 @@ def compute_lighting(P, N, V, s, scene) -> float:
                 t_max = np.inf
 
             # Shadow check
-            if exists_intersection(Ray(P, L), scene, t_min=0.001, t_max=t_max):
+            if exists_intersection(P, L, scene, t_min=0.001, t_max=t_max):
                 continue
 
             # Diffuse
@@ -297,8 +297,8 @@ scene.add_lights(
 )
 scene.img.fill(255)
 
-
 benchmark(scene)
+#render_scene(scene)
 
 plt.imshow(scene.img)
 plt.show()
