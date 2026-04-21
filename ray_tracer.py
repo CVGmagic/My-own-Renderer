@@ -230,11 +230,15 @@ def trace_ray(
         O,
         D,
         bgcol,
+        ref_idx,
         max_rec_depth,
         obj_types,
         colors,
         speculars,
         reflectives,
+        absorptions,
+        transparents,
+        refractive_indices,
         sphere_centers,
         sphere_radii,
         light_types,
@@ -246,7 +250,7 @@ def trace_ray(
         recursion_depth=0
 ) -> np.ndarray[3]:
 
-    """Traces the rays path and returns the closest intersected Object"""
+    """Traces the rays path and returns the color seen by this Ray"""
     closest_obj, closest_t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min, t_max)
 
     if closest_obj == -1:
@@ -257,36 +261,141 @@ def trace_ray(
     if obj_types[closest_obj] == SPHERE:
         N = get_normal_vector_sphere(sphere_centers[closest_obj], P)
 
-    V = -D
-    local_color = colors[closest_obj] * compute_lighting(P, N, V, speculars[closest_obj], obj_types, sphere_centers, sphere_radii, light_types, light_intensities, light_directions, light_positions)
 
-    # If object is not reflecctive, or we hit recursion limit, stop
-    r = reflectives[closest_obj]
-    if r <= 0 or recursion_depth >= max_rec_depth:
-        return local_color
+    # Transparent Objects
+    if not transparents[closest_obj]:
 
-    R = reflect_ray(V, N)
+        V = -D
+        local_color = colors[closest_obj] * compute_lighting(P, N, V, speculars[closest_obj], obj_types, sphere_centers,
+                                                             sphere_radii, light_types, light_intensities,
+                                                             light_directions, light_positions)
+
+        # If object is not reflective, or we hit recursion limit, stop
+        r = reflectives[closest_obj]
+        if r <= 0 or recursion_depth >= max_rec_depth:
+            return local_color
+
+        R = reflect_ray(V, N)
+        reflected_color = trace_ray(
+                                    P,
+                                    R,
+                                    bgcol,
+                                    max_rec_depth,
+                                    obj_types,
+                                    colors,
+                                    speculars,
+                                    reflectives,
+                                    sphere_centers,
+                                    sphere_radii,
+                                    light_types,
+                                    light_intensities,
+                                    light_directions,
+                                    light_positions,
+                                    t_min=0.001,
+                                    t_max=np.inf,
+                                    recursion_depth=recursion_depth + 1
+        )
+
+        return local_color * (1 - r) + reflected_color * r
+
+    # Reflective
+    else:
+        r = compute_reflection(D, N, ref_idx, refractive_index[closest_obj])
+
+        d = norm(D) * closest_t
+
+        T = math.exp(-absorptions[closest_object] * d)
+
+        R = reflect_ray(-D, N)
+        reflected_color = trace_ray(
+            P,
+            R,
+            bgcol,
+            max_rec_depth,
+            obj_types,
+            colors,
+            speculars,
+            reflectives,
+            sphere_centers,
+            sphere_radii,
+            light_types,
+            light_intensities,
+            light_directions,
+            light_positions,
+            t_min=0.001,
+            t_max=np.inf,
+            recursion_depth=recursion_depth + 1
+        )
+
+        refracted_color = 0
+
+
+@njit
+def trace_inside_ray(
+        O,
+        D,
+        bgcol,
+        ref_idx,
+        max_rec_depth,
+        obj_types,
+        colors,
+        speculars,
+        reflectives,
+        absorptions,
+        transparents,
+        refractive_indices,
+        sphere_centers,
+        sphere_radii,
+        light_types,
+        light_intensities,
+        light_directions,
+        light_positions,
+        t_min=0,
+        t_max=np.inf,
+        recursion_depth=0
+) -> np.ndarray[3]:
+    """Traces the ray's path inside an object and returns the color seen by this Ray"""
+    closest_obj, closest_t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min, t_max)
+
+    if closest_obj == -1:
+        return bgcol
+
+    P = O + D * closest_t
+
+    if obj_types[closest_obj] == SPHERE:
+        N = get_normal_vector_sphere(sphere_centers[closest_obj], P)
+
+
+    # We know that closest_obj is transparent, no check needed
+
+    r = compute_reflection(D, N, ref_idx, refractive_index[closest_obj])
+
+    d = norm(D) * closest_t
+
+    T = math.exp(-absorptions[closest_object] * d)
+
+    R = reflect_ray(-D, N)
     reflected_color = trace_ray(
-                                P,
-                                R,
-                                bgcol,
-                                max_rec_depth,
-                                obj_types,
-                                colors,
-                                speculars,
-                                reflectives,
-                                sphere_centers,
-                                sphere_radii,
-                                light_types,
-                                light_intensities,
-                                light_directions,
-                                light_positions,
-                                t_min=0.001,
-                                t_max=np.inf,
-                                recursion_depth=recursion_depth + 1
+        P,
+        R,
+        bgcol,
+        max_rec_depth,
+        obj_types,
+        colors,
+        speculars,
+        reflectives,
+        sphere_centers,
+        sphere_radii,
+        light_types,
+        light_intensities,
+        light_directions,
+        light_positions,
+        t_min=0.001,
+        t_max=np.inf,
+        recursion_depth=recursion_depth + 1
     )
 
-    return local_color * (1 - r) + reflected_color * r
+    refracted_color = 0
 
 
 @njit
@@ -343,13 +452,36 @@ def compute_lighting(P,
 
 
 @njit
-def reflect_ray(R, N):
+def reflect_ray(R, N) -> np.ndarray[3]:
     return 2 * N * np.dot(N, R) - R
 
 
 @njit
 def norm(v):
     return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+
+
+@njit
+def dot(v1, v2):
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+
+
+@njit
+def refract_ray(R, N, n_cur, n_new) -> np.ndarray[3]:
+    R_hat = R / norm(R)
+    eta = n_cur / n_new
+    cos_theta_1 = dot(-R_hat, N)
+    cos_theta_2 = math.sqrt(1 - eta**2 * (1 - cos_theta_1**2))
+    T = eta * R_hat + (eta * cos_theta_1 - cos_thets_2) * N
+    return T
+
+
+@njit
+def compute_reflection(R, N, n_cur, n_new) -> float:
+    cos_phi = dot(-R, N) / norm(R)
+    sqrt_R_0 = (n_cur - n_new) / (n_cur + n_new)
+    R_0 = sqrt_R_0 * sqrt_R_0
+    return R_0 + (1 - R_0) * (1 - cos_phi)**5
 
 
 def benchmark(scene, runs=10, warmup=2):
@@ -500,7 +632,7 @@ scene.add_objects(
             radius=1,
             color=np.array([0, 0, 255]), # Blue
             specular = 500,
-            reflective = 0.3
+            reflective = 1 # 0.3
            ),
     Sphere(
             center=np.array([-2, 0, 4]),
@@ -524,10 +656,10 @@ scene.add_lights(
     Light(type="directional", intensity=0.1, direction=np.array([1, 4, 4])) # 0.2
 )
 
-scene.img.fill(255)
-benchmark(scene)
+#scene.img.fill(255)
+#benchmark(scene)
 
-#render_scene(scene)
+render_scene(scene)
 
 plt.imshow(scene.img)
 plt.show()
