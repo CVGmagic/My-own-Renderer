@@ -8,10 +8,11 @@ from light_type_flags import *
 
 
 class Scene:
-    def __init__(self, cw, ch, vw, vh, d, O, max_rec_depth=3):
+    def __init__(self, cw, ch, vw, vh, d, O, max_rec_depth=3, rays_per_pixel=1):
         self.objects = []
         self.lights = []
         self.max_rec_depth = max_rec_depth
+        self.rays_per_pixel = rays_per_pixel
 
         """Controls image resolution"""
         self.cw: int = cw
@@ -79,11 +80,11 @@ class Scene:
 
 
 class Sphere:
-    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emission_strength=0):
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0):
         self.C = center
         self.r = radius
         self.color = color / 255
-        self.emitted_color = self.color
+        self.emitted_color = emitted_color / 255
         self.emission_strength = emission_strength
 
 
@@ -192,6 +193,32 @@ def exists_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_ce
 
 
 @njit
+def random_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
+    rands = np.random.random(3)
+    while norm(rands) > 1:
+        rands = np.random.random(3)
+
+    rands /= norm(rands)
+
+    x = rands[0]
+    y = rands[1]
+    z = rands[2]
+
+    # Use frisvad's algorithm to efficiently find orthonorml basis
+    # TODO Switch out arrays for numbers to boost performance
+    if N[2] < -0.9999999:  # might have to tweak this value
+        b1 = np.array([0, -1, 0], dtype=np.float64)
+        b2 = np.array([-1, 0, 0], dtype=np.float64)
+    else:
+        a = 1.0 / (1.0 + N[2])
+        b = -N[0] * N[1] * a
+        b1 = np.array([1 - N[0] * N[0] * a, b, -N[0]], dtype=np.float64)
+        b2 = np.array([b, 1 - N[1] * N[1] * a, -N[1]], dtype=np.float64)
+
+    return x * b1 + y * b2 + z * N
+
+
+@njit
 def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
     """Returns a normed vetor pointing in a random direction (cosine weighted) in
     a hemisphere"""
@@ -224,7 +251,7 @@ def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
 
 
 @njit
-def trace_ray_new(
+def trace_ray(
         O,
         D,
         colors,
@@ -244,7 +271,7 @@ def trace_ray_new(
         obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
 
         if obj == -1: # No object found
-            break
+            incoming_light += get_environment_lighting(D)
 
         P = O + D * t
 
@@ -306,6 +333,19 @@ def compute_reflection(R, N, n_cur, n_new) -> float:
     return R_0 + (1 - R_0) * (1 - cos_phi)**5
 
 
+@njit
+def get_environment_lighting(D):
+    """Gets an environment color in case the ray misses everything"""
+    ground_color = np.array([0.6, 0.6, 0.6], dtype=np.float64)
+    sky_color = np.array([0, 119, 255], dtype=np.float64) / 255
+
+    # TODO Make a nice sky gradient
+    if D[1] < -0.3:
+        return ground_color
+    else:
+        return sky_color
+
+
 def benchmark(scene, runs=10, warmup=2):
     import time
 
@@ -341,6 +381,7 @@ def fill_image(
         emitted_colors,
         emission_strengths,
         recursion_limit,
+        rays_per_pixel,
         obj_types,
         sphere_centers,
         sphere_radii
@@ -350,18 +391,21 @@ def fill_image(
         for cy in range(-ch // 2 + 1, ch // 2 + 1):
             V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
             D = V - O
-            color = trace_ray_new(
-                O=O,
-                D=D,
-                colors=colors,
-                emitted_colors=emitted_colors,
-                emission_strengths=emission_strengths,
-                recursion_limit=recursion_limit,
-                obj_types=obj_types,
-                sphere_centers=sphere_centers,
-                sphere_radii=sphere_radii
-            )
-            put_pixel(img, cx, cy, cw, ch, col=color)
+            avg_col = np.array([0, 0, 0], dtype=np.float64)
+            for _ in range(rays_per_pixel):
+                avg_col += trace_ray(
+                    O=O,
+                    D=D,
+                    colors=colors,
+                    emitted_colors=emitted_colors,
+                    emission_strengths=emission_strengths,
+                    recursion_limit=recursion_limit,
+                    obj_types=obj_types,
+                    sphere_centers=sphere_centers,
+                    sphere_radii=sphere_radii
+                )
+            avg_col /= rays_per_pixel
+            put_pixel(img, cx, cy, cw, ch, col=avg_col)
 
 
 def render_scene(scene) -> None:
@@ -371,6 +415,7 @@ def render_scene(scene) -> None:
     """Unpack all scene arguments, to avoid object access inside loops for performance reasons"""
 
     max_rec_depth = scene.max_rec_depth
+    rays_per_pixel = scene.rays_per_pixel
 
     cw = scene.cw
     ch = scene.ch
@@ -404,6 +449,7 @@ def render_scene(scene) -> None:
         emitted_colors=emitted_colors,
         emission_strengths=emission_strengths,
         recursion_limit=max_rec_depth,
+        rays_per_pixel=rays_per_pixel,
         obj_types=obj_types,
         sphere_centers=sphere_centers,
         sphere_radii=sphere_radii
@@ -412,41 +458,43 @@ def render_scene(scene) -> None:
 
 """Initialize scene"""
 scene = Scene(
-    cw = 300,
+    cw = 450,
     ch = 300,
-    vw = 1,
+    vw = 1.5,
     vh = 1,
     d = 1,
     O = np.array([0, 0, 0], dtype=np.float64),
-    max_rec_depth=2
+    max_rec_depth=3,
+    rays_per_pixel=10
 )
 
 scene.add_objects(
     Sphere(
-            center=np.array([0, -4, 10]),
+            center=np.array([-8, -4, 20]),
             radius=1,
             color=np.array([255, 0, 0]), # Red
            ),
     Sphere(
-            center=np.array([2, 0, 14]),
-            radius=1,
+            center=np.array([10, -1, 20]),
+            radius=4,
             color=np.array([0, 0, 255]), # Blue
            ),
     Sphere(
-            center=np.array([-2, 0, 10]),
-            radius=1,
+            center=np.array([0, -2, 16]),
+            radius=2,
             color=np.array([0, 255, 0]), # Green
            ),
     Sphere(
-            center=np.array([0, -5004, 10]),
-            radius=5000,
+            center=np.array([3, -54, 20]),
+            radius=50,
             color=np.array([255, 255, 0]), # Yellow
         ),
     Sphere(
-        center=np.array([-30, 2, 60]),
-        radius=10,
-        color=np.array([255, 255, 255]),
-        emission_strength=1
+        center=np.array([-70, 40, 100]),
+        radius=80,
+        color=np.array([0, 0, 0]),
+        emitted_color=np.array([255, 255, 255]),
+        emission_strength=2 # Light source
         )
 )
 
