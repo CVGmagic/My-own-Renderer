@@ -244,22 +244,18 @@ def random_weighted_dir(N: np.ndarray[3]) -> np.ndarray[3]:
     y = r * math.sin(phi)
     z = math.sqrt(1 - u1)
 
-    # Find two vectors perpendicular to N, to transform coordinates into those
-    if N[0] > 0.9: # N is almost parallel to x-axis
-        helper = np.array([0, 1, 0]) # Can be any vector that's not parallel to N
+    # Use frisvad's algorithm to efficiently find orthonorml basis
+    # TODO Switch out arrays for numbers to boost performance
+    if N[0] < -0.9999999: # might have to tweak this value
+        b1 = np.array([0, -1, 0], dtype=np.float64)
+        b2 = np.array([-1, 0, 0], dtype=np.float64)
     else:
-        helper = np.array([1, 0, 0])
+        a = 1.0 / (1.0 + N[2])
+        b = -N[0] * N[1] * a
+        b1 = np.array([1 - N[0] * N[0] * a, b, -N[0]], dtype=np.float64)
+        b2 = np.array([b, 1 - N[1] * N[1] * a, -N[1]], dtype=np.float64)
 
-    v1 = cross(N, helper)
-    v1 /= norm(v1)
-
-    v2 = cross(N, v1)
-    # No normalization needed, both input vectors have length 1
-
-    # Transform coordinate space so N points up
-    res = x * v1 + y * v2 + z * N
-    # Again, no normalization needed
-    return res
+    return x * b1 + y * b2 + z * N
 
 
 @njit
