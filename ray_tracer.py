@@ -194,15 +194,12 @@ def exists_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_ce
 
 @njit
 def random_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
-    rands = np.random.random(3)
-    while norm(rands) > 1:
-        rands = np.random.random(3)
+    z = np.random.random()  # [0,1)
+    phi = 2 * math.pi * np.random.random()
 
-    rands /= norm(rands)
-
-    x = rands[0]
-    y = rands[1]
-    z = rands[2]
+    r = math.sqrt(1 - z * z)
+    x = r * math.cos(phi)
+    y = r * math.sin(phi)
 
     # Use frisvad's algorithm to efficiently find orthonorml basis
     # TODO Switch out arrays for numbers to boost performance
@@ -335,10 +332,17 @@ def compute_reflection(R, N, n_cur, n_new) -> float:
 
 
 @njit
+def lerp_vector(v1: np.ndarray[3], v2: np.ndarray[3], t: float) -> np.ndarray[3]:
+    return v1 + (v2 - v1) * t
+
+
+@njit
 def get_environment_lighting(D):
     """Gets an environment color in case the ray misses everything"""
+    if True:
+        return np.zeros(3, dtype=np.float64)
     ground_color = np.array([0.6, 0.6, 0.6], dtype=np.float64)
-    sky_color = np.array([0, 119, 255], dtype=np.float64) / 255
+    sky_color = np.array([86, 205, 255], dtype=np.float64) / 255
 
     # TODO Make a nice sky gradient
     if D[1] < -0.3:
