@@ -8,11 +8,9 @@ from light_type_flags import *
 
 
 class Scene:
-    def __init__(self, cw, ch, vw, vh, d, O, bgcol=np.array([0, 0, 0], dtype=np.float64), max_rec_depth=3):
+    def __init__(self, cw, ch, vw, vh, d, O, max_rec_depth=3):
         self.objects = []
         self.lights = []
-        self.bgcol = bgcol
-        self.bgcol /= 255
         self.max_rec_depth = max_rec_depth
 
         """Controls image resolution"""
@@ -31,16 +29,11 @@ class Scene:
         """Array for faster runtime, will be set using compile"""
         self.obj_types = None  # Stores the type of each Object
         self.colors = None
-        self.speculars = None
-        self.reflectives = None
+        self.emitted_colors = None
+        self.emission_strengths = None
 
         self.sphere_centers = None
         self.sphere_radii = None
-
-        self.light_types = None
-        self.light_intensities = None
-        self.light_directions = None
-        self.light_positions = None
 
 
     def add_objects(self, *args):
@@ -58,8 +51,8 @@ class Scene:
         """General object data"""
         obj_types = np.zeros(len(self.objects), dtype=np.int32)
         colors = np.zeros((len(self.objects), 3), dtype=np.float64)
-        speculars = np.zeros(len(self.objects), dtype=np.float64)
-        reflectives = np.zeros(len(self.objects), dtype=np.float64)
+        emitted_colors = np.zeros((len(self.objects), 3), dtype=np.float64)
+        emission_strengths = np.zeros(len(self.objects), dtype=np.float64)
 
         """Sphere data"""
         sphere_centers = np.zeros((len(self.objects), 3))
@@ -67,60 +60,32 @@ class Scene:
 
         for i, obj in enumerate(self.objects):
 
-            colors[i] = obj.color / 255
-            speculars[i] = obj.specular
-            reflectives[i] = obj.reflective
+            colors[i] = obj.color
+            emitted_colors[i] = obj.emitted_color
+            emission_strengths[i] = obj.emission_strength
 
             if type(obj) == Sphere:
                 obj_types[i] = SPHERE
                 sphere_radii[i] = obj.r
                 sphere_centers[i] = obj.C
 
-        self.types = obj_types
+        self.obj_types = obj_types
         self.colors = colors
-        self.speculars = speculars
-        self.reflectives = reflectives
+        self.emitted_colors = emitted_colors
+        self.emission_strengths = emission_strengths
 
         self.sphere_centers = sphere_centers
         self.sphere_radii = sphere_radii
 
 
-        """Light data"""
-        light_types = np.zeros(len(self.lights), dtype=np.int32)
-        light_intensities = np.zeros(len(self.lights), dtype=np.float64)
-        light_directions = np.zeros((len(self.lights), 3), dtype=np.float64)
-        light_positions = np.zeros((len(self.lights), 3), dtype=np.float64)
-
-        for i, light in enumerate(self.lights):
-            light_intensities[i] = light.intensity
-
-            if light.type == "ambient":
-                light_types[i] = AMBIENT
-
-            elif light.type == "point":
-                light_types[i] = POINT
-                light_positions[i] = light.position
-
-            elif light.type == "directional":
-                light_types[i] = DIRECTIONAL
-                light_directions[i] = light.direction
-
-            else:
-                raise TypeError("Invalid light type encountered during compilation")
-
-        self.light_types = light_types
-        self.light_intensities = light_intensities
-        self.light_directions = light_directions
-        self.light_positions = light_positions
-
-
 class Sphere:
-    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), specular=-1, reflective=0):
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emission_strength=0):
         self.C = center
         self.r = radius
-        self.color = color
-        self.specular = specular
-        self.reflective = reflective
+        self.color = color / 255
+        self.emitted_color = self.color
+        self.emission_strength = emission_strength
+
 
 
 class Light:
@@ -227,7 +192,7 @@ def exists_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_ce
 
 
 @njit
-def random_weighted_dir(N: np.ndarray[3]) -> np.ndarray[3]:
+def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
     """Returns a normed vetor pointing in a random direction (cosine weighted) in
     a hemisphere"""
 
@@ -246,7 +211,7 @@ def random_weighted_dir(N: np.ndarray[3]) -> np.ndarray[3]:
 
     # Use frisvad's algorithm to efficiently find orthonorml basis
     # TODO Switch out arrays for numbers to boost performance
-    if N[0] < -0.9999999: # might have to tweak this value
+    if N[2] < -0.9999999: # might have to tweak this value
         b1 = np.array([0, -1, 0], dtype=np.float64)
         b2 = np.array([-1, 0, 0], dtype=np.float64)
     else:
@@ -259,229 +224,45 @@ def random_weighted_dir(N: np.ndarray[3]) -> np.ndarray[3]:
 
 
 @njit
-def trace_ray(
+def trace_ray_new(
         O,
         D,
-        bgcol,
-        ref_idx,
-        max_rec_depth,
-        obj_types,
         colors,
-        speculars,
-        reflectives,
-        absorptions,
-        transparents,
-        refractive_indices,
+        emitted_colors,
+        emission_strengths,
+        recursion_limit,
+        obj_types,
         sphere_centers,
-        sphere_radii,
-        light_types,
-        light_intensities,
-        light_directions,
-        light_positions,
-        t_min=0,
-        t_max=np.inf,
-        recursion_depth=0
+        sphere_radii
 ) -> np.ndarray[3]:
+    """Traces a ray"""
+    incoming_light = np.zeros(3, dtype=np.float64)
+    ray_color = np.array([1, 1, 1], dtype=np.float64)
 
-    """Traces the rays path and returns the color seen by this Ray"""
-    closest_obj, closest_t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min, t_max)
+    # Multiple ray bounces are now implemented iteratively for small performance gain
+    for i in range(recursion_limit):
+        obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
 
-    if closest_obj == -1:
-        return bgcol
+        if obj == -1: # No object found
+            break
 
-    P = O + D * closest_t
+        P = O + D * t
 
-    if obj_types[closest_obj] == SPHERE:
-        N = get_normal_vector_sphere(sphere_centers[closest_obj], P)
-
-
-    # Transparent Objects
-    if not transparents[closest_obj]:
-
-        V = -D
-        local_color = colors[closest_obj] * compute_lighting(P, N, V, speculars[closest_obj], obj_types, sphere_centers,
-                                                             sphere_radii, light_types, light_intensities,
-                                                             light_directions, light_positions)
-
-        # If object is not reflective, or we hit recursion limit, stop
-        r = reflectives[closest_obj]
-        if r <= 0 or recursion_depth >= max_rec_depth:
-            return local_color
-
-        R = reflect_ray(V, N)
-        reflected_color = trace_ray(
-                                    P,
-                                    R,
-                                    bgcol,
-                                    max_rec_depth,
-                                    obj_types,
-                                    colors,
-                                    speculars,
-                                    reflectives,
-                                    sphere_centers,
-                                    sphere_radii,
-                                    light_types,
-                                    light_intensities,
-                                    light_directions,
-                                    light_positions,
-                                    t_min=0.001,
-                                    t_max=np.inf,
-                                    recursion_depth=recursion_depth + 1
-        )
-
-        return local_color * (1 - r) + reflected_color * r
-
-    # Reflective
-    else:
-        r = compute_reflection(D, N, ref_idx, refractive_index[closest_obj])
-
-        d = norm(D) * closest_t
-
-        T = math.exp(-absorptions[closest_object] * d)
-
-        R = reflect_ray(-D, N)
-        reflected_color = trace_ray(
-            P,
-            R,
-            bgcol,
-            max_rec_depth,
-            obj_types,
-            colors,
-            speculars,
-            reflectives,
-            sphere_centers,
-            sphere_radii,
-            light_types,
-            light_intensities,
-            light_directions,
-            light_positions,
-            t_min=0.001,
-            t_max=np.inf,
-            recursion_depth=recursion_depth + 1
-        )
-
-        refracted_color = 0
-
-
-@njit
-def trace_inside_ray(
-        O,
-        D,
-        bgcol,
-        ref_idx,
-        max_rec_depth,
-        obj_types,
-        colors,
-        speculars,
-        reflectives,
-        absorptions,
-        transparents,
-        refractive_indices,
-        sphere_centers,
-        sphere_radii,
-        light_types,
-        light_intensities,
-        light_directions,
-        light_positions,
-        t_min=0,
-        t_max=np.inf,
-        recursion_depth=0
-) -> np.ndarray[3]:
-    """Traces the ray's path inside an object and returns the color seen by this Ray"""
-    closest_obj, closest_t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min, t_max)
-
-    if closest_obj == -1:
-        return bgcol
-
-    P = O + D * closest_t
-
-    if obj_types[closest_obj] == SPHERE:
-        N = get_normal_vector_sphere(sphere_centers[closest_obj], P)
-
-
-    # We know that closest_obj is transparent, no check needed
-
-    r = compute_reflection(D, N, ref_idx, refractive_index[closest_obj])
-
-    d = norm(D) * closest_t
-
-    T = math.exp(-absorptions[closest_object] * d)
-
-    R = reflect_ray(-D, N)
-    reflected_color = trace_ray(
-        P,
-        R,
-        bgcol,
-        max_rec_depth,
-        obj_types,
-        colors,
-        speculars,
-        reflectives,
-        sphere_centers,
-        sphere_radii,
-        light_types,
-        light_intensities,
-        light_directions,
-        light_positions,
-        t_min=0.001,
-        t_max=np.inf,
-        recursion_depth=recursion_depth + 1
-    )
-
-    refracted_color = 0
-
-
-@njit
-def compute_lighting(P,
-                     N,
-                     V,
-                     s,
-                     obj_types,
-                     sphere_centers,
-                     sphere_radii,
-                     light_types,
-                     light_intensities,
-                     light_directions,
-                     light_positions
-) -> float:
-    """
-    Takes in a point, the surface normal at that point and of course the scene
-    and computes the intensity of the reflected light
-    """
-    i: float = 0
-    for light in range(len(light_types)):
-        if light_types[light] == AMBIENT:
-            i += light_intensities[light]
-
+        if obj_types[obj] == SPHERE:
+            N = get_normal_vector_sphere(sphere_centers[obj], P)
         else:
-            if light_types[light] == POINT:
-                L = light_positions[light] - P
-                t_max = 1.001
+            raise TypeError("Unknown Object type encountered")
 
-            elif light_types[light] == DIRECTIONAL:
-                L = light_directions[light]
-                t_max = np.inf
+        new_D = random_cos_weighted_hemisphere_direction(N)
 
-            # Shadow check
-            if exists_intersection(P, L, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=t_max):
-                continue
+        emitted_light = emitted_colors[obj] * emission_strengths[obj]
+        incoming_light += emitted_light * ray_color # Objects only reflect their color
+        ray_color *= colors[obj] # Ray always gets darker
 
-            # Diffuse
-            cos_a = np.dot(N, L)
-            norm_L = math.sqrt(L[0] * L[0] + L[1] * L[1] + L[2] * L[2])
-            if cos_a > 0:
-                i += light_intensities[light] * cos_a / norm_L
+        O = P
+        D = new_D
 
-            # Specular
-            if s != -1:
-                R = reflect_ray(L, N)
-                r_dot_v = np.dot(R, V)
-                norm_R = math.sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2])
-                norm_V = math.sqrt(V[0] * V[0] + V[1] * V[1] + V[2] * V[2])
-                if r_dot_v > 0:
-                    i += light_intensities[light] * pow(r_dot_v / (norm_R * norm_V), s)
-
-    return i
+    return incoming_light
 
 
 @njit
@@ -549,46 +330,36 @@ def benchmark(scene, runs=10, warmup=2):
 
 @njit
 def fill_image(
-        bgcol,
-        max_rec_depth,
-        img,
         cw,
         ch,
+        img,
         vw,
         vh,
         d,
         O,
-        obj_types,  # Stores the type of each Object
         colors,
-        speculars,
-        reflectives,
+        emitted_colors,
+        emission_strengths,
+        recursion_limit,
+        obj_types,
         sphere_centers,
-        sphere_radii,
-        light_types,
-        light_intensities,
-        light_directions,
-        light_positions
+        sphere_radii
 ) -> None:
     """Fills the image in"""
     for cx in range(-cw // 2, cw // 2):
         for cy in range(-ch // 2 + 1, ch // 2 + 1):
             V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
             D = V - O
-            color = trace_ray(
-                                O,
-                                D,
-                                bgcol,
-                                max_rec_depth,
-                                obj_types,
-                                colors,
-                                speculars,
-                                reflectives,
-                                sphere_centers,
-                                sphere_radii,
-                                light_types,
-                                light_intensities,
-                                light_directions,
-                                light_positions
+            color = trace_ray_new(
+                O=O,
+                D=D,
+                colors=colors,
+                emitted_colors=emitted_colors,
+                emission_strengths=emission_strengths,
+                recursion_limit=recursion_limit,
+                obj_types=obj_types,
+                sphere_centers=sphere_centers,
+                sphere_radii=sphere_radii
             )
             put_pixel(img, cx, cy, cw, ch, col=color)
 
@@ -599,7 +370,6 @@ def render_scene(scene) -> None:
 
     """Unpack all scene arguments, to avoid object access inside loops for performance reasons"""
 
-    bgcol = scene.bgcol
     max_rec_depth = scene.max_rec_depth
 
     cw = scene.cw
@@ -614,39 +384,29 @@ def render_scene(scene) -> None:
     O = scene.O
 
     """Array for faster runtime, will be set using compile"""
-    obj_types = scene.types  # Stores the type of each Object
+    obj_types = scene.obj_types  # Stores the type of each Object
     colors = scene.colors
-    speculars = scene.speculars
-    reflectives = scene.reflectives
+    emitted_colors = scene.emitted_colors
+    emission_strengths = scene.emission_strengths
 
     sphere_centers = scene.sphere_centers
     sphere_radii = scene.sphere_radii
 
-    light_types = scene.light_types
-    light_intensities = scene.light_intensities
-    light_directions = scene.light_directions
-    light_positions = scene.light_positions
-
     fill_image(
-        bgcol,
-        max_rec_depth,
-        img,
-        cw,
-        ch,
-        vw,
-        vh,
-        d,
-        O,
-        obj_types,
-        colors,
-        speculars,
-        reflectives,
-        sphere_centers,
-        sphere_radii,
-        light_types,
-        light_intensities,
-        light_directions,
-        light_positions
+        cw=scene.cw,
+        ch=scene.ch,
+        img=scene.img,
+        vw = scene.vw,
+        vh = scene.vh,
+        d = scene.d,
+        O=O,
+        colors=colors,
+        emitted_colors=emitted_colors,
+        emission_strengths=emission_strengths,
+        recursion_limit=max_rec_depth,
+        obj_types=obj_types,
+        sphere_centers=sphere_centers,
+        sphere_radii=sphere_radii
     )
 
 
@@ -657,7 +417,8 @@ scene = Scene(
     vw = 1,
     vh = 1,
     d = 1,
-    O = np.array([0, 0, 0])
+    O = np.array([0, 0, 0], dtype=np.float64),
+    max_rec_depth=3
 )
 
 scene.add_objects(
@@ -665,37 +426,30 @@ scene.add_objects(
             center=np.array([0, -1, 3]),
             radius=1,
             color=np.array([255, 0, 0]), # Red
-            specular = 500,
-            reflective = 0.2
            ),
     Sphere(
             center=np.array([2, 0, 4]),
             radius=1,
             color=np.array([0, 0, 255]), # Blue
-            specular = 500,
-            reflective = 1 # 0.3
            ),
     Sphere(
             center=np.array([-2, 0, 4]),
             radius=1,
             color=np.array([0, 255, 0]), # Green
-            specular = 10,
-            reflective = 0.4
            ),
     Sphere(
             center=np.array([0, -5001, 0]),
             radius=5000,
             color=np.array([255, 255, 0]), # Yellow
-            specular = 1000,
-            reflective = 0.5
-    )
+        ),
+    Sphere(
+        center=np.array([0, 2, 10]),
+        radius=3,
+        color=np.array([255, 255, 255]),
+        emission_strength=1
+        )
 )
 
-scene.add_lights(
-    Light(type="ambient", intensity=0.3), # 0.2
-    Light(type="point", position=np.array([2, 1, 0]), intensity=0.6), # 0.6
-    Light(type="directional", intensity=0.1, direction=np.array([1, 4, 4])) # 0.2
-)
 
 #scene.img.fill(255)
 #benchmark(scene)
