@@ -162,6 +162,7 @@ def canvas_to_viewport(cx: int, cy: int, cw: int, ch: int, vw: float, vh: float,
 
 @njit
 def get_normal_vector_sphere(C: np.ndarray[3], P: np.ndarray[3]) -> np.ndarray[3]:
+    """Returns a normaalized surface normal"""
     N = P - C
     N /= math.sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2])
     return N
@@ -223,6 +224,42 @@ def exists_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_ce
             return True
 
     return False
+
+
+@njit
+def random_weighted_dir(N: np.ndarray[3]) -> np.ndarray[3]:
+    """Returns a normed vetor pointing in a random direction (cosine weighted) in
+    a hemisphere"""
+
+    # Generate two random numbers
+    u1 = np.random.random()
+    u2 = np.random.random()
+
+    # Generate evenly distributed points accross a disk
+    r = math.sqrt(u1) # because area grows with r^2
+    phi = 2 * math.pi * u2
+
+    # Map disk onto hemisphere (automatically cosine weighted)
+    x = r * math.cos(phi)
+    y = r * math.sin(phi)
+    z = math.sqrt(1 - u1)
+
+    # Find two vectors perpendicular to N, to transform coordinates into those
+    if N[0] > 0.9: # N is almost parallel to x-axis
+        helper = np.array([0, 1, 0]) # Can be any vector that's not parallel to N
+    else:
+        helper = np.array([1, 0, 0])
+
+    v1 = cross(N, helper)
+    v1 /= norm(v1)
+
+    v2 = cross(N, v1)
+    # No normalization needed, both input vectors have length 1
+
+    # Transform coordinate space so N points up
+    res = x * v1 + y * v2 + z * N
+    # Again, no normalization needed
+    return res
 
 
 @njit
@@ -457,13 +494,21 @@ def reflect_ray(R, N) -> np.ndarray[3]:
 
 
 @njit
-def norm(v):
+def norm(v) -> float:
     return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
 
 
 @njit
-def dot(v1, v2):
+def dot(v1, v2) -> float:
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+
+
+@njit
+def cross(v1, v2) -> np.ndarray[3]:
+    x = v1[1] * v2[2] - v1[2] * v2[1]
+    y = v1[2] * v2[0] - v1[0] * v2[2]
+    z = v1[0] * v2[1] - v1[1] * v2[0]
+    return np.array([x, y, z])
 
 
 @njit
