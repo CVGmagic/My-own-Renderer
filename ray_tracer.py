@@ -418,33 +418,33 @@ scene = Scene(
     vh = 1,
     d = 1,
     O = np.array([0, 0, 0], dtype=np.float64),
-    max_rec_depth=3
+    max_rec_depth=2
 )
 
 scene.add_objects(
     Sphere(
-            center=np.array([0, -1, 3]),
+            center=np.array([0, -4, 10]),
             radius=1,
             color=np.array([255, 0, 0]), # Red
            ),
     Sphere(
-            center=np.array([2, 0, 4]),
+            center=np.array([2, 0, 14]),
             radius=1,
             color=np.array([0, 0, 255]), # Blue
            ),
     Sphere(
-            center=np.array([-2, 0, 4]),
+            center=np.array([-2, 0, 10]),
             radius=1,
             color=np.array([0, 255, 0]), # Green
            ),
     Sphere(
-            center=np.array([0, -5001, 0]),
+            center=np.array([0, -5004, 10]),
             radius=5000,
             color=np.array([255, 255, 0]), # Yellow
         ),
     Sphere(
-        center=np.array([0, 2, 10]),
-        radius=3,
+        center=np.array([-30, 2, 60]),
+        radius=10,
         color=np.array([255, 255, 255]),
         emission_strength=1
         )
