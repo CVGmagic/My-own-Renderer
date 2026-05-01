@@ -271,7 +271,8 @@ def trace_ray(
         obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
 
         if obj == -1: # No object found
-            incoming_light += get_environment_lighting(D)
+            incoming_light += get_environment_lighting(D) * ray_color
+            break
 
         P = O + D * t
 
