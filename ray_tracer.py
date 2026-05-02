@@ -424,32 +424,39 @@ def fill_image(
         sphere_radii
 ) -> None:
     """Fills the image in"""
-    for cx in prange(-cw // 2, cw // 2):
-        for cy in range(-ch // 2 + 1, ch // 2 + 1):
-            V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
-            D = V - O
+    for i in prange(cw * ch):
+        y_idx = i // cw # After every row we move up one column
+        x_idx = i % cw
 
-            avg_col = np.array([0, 0, 0], dtype=np.float64)
+        # Convert back to canvas coordinates
+        cx = x_idx - (cw // 2)
+        cy = (ch // 2) - y_idx
 
-            for _ in range(rays_per_pixel):
-                incoming_light = np.zeros(3, dtype=np.float64)
-                ray_color = np.ones(3, dtype=np.float64)
-                avg_col += trace_ray(
-                    O=O,
-                    D=D,
-                    incoming_light=incoming_light,
-                    ray_color=ray_color,
-                    colors=colors,
-                    emitted_colors=emitted_colors,
-                    emission_strengths=emission_strengths,
-                    smoothnesses=smoothnesses,
-                    bounces_left=recursion_limit,
-                    obj_types=obj_types,
-                    sphere_centers=sphere_centers,
-                    sphere_radii=sphere_radii
-                )
-            avg_col /= rays_per_pixel
-            put_pixel(img, cx, cy, cw, ch, col=avg_col)
+        # Continue tracing like normal
+        V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
+        D = V - O
+
+        avg_col = np.array([0, 0, 0], dtype=np.float64)
+
+        for _ in range(rays_per_pixel):
+            incoming_light = np.zeros(3, dtype=np.float64)
+            ray_color = np.ones(3, dtype=np.float64)
+            avg_col += trace_ray(
+                O=O,
+                D=D,
+                incoming_light=incoming_light,
+                ray_color=ray_color,
+                colors=colors,
+                emitted_colors=emitted_colors,
+                emission_strengths=emission_strengths,
+                smoothnesses=smoothnesses,
+                bounces_left=recursion_limit,
+                obj_types=obj_types,
+                sphere_centers=sphere_centers,
+                sphere_radii=sphere_radii
+            )
+        avg_col /= rays_per_pixel
+        put_pixel(img, cx, cy, cw, ch, col=avg_col)
 
 
 def render_scene(scene) -> None:
