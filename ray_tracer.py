@@ -210,15 +210,26 @@ def random_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
     # Use frisvad's algorithm to efficiently find orthonorml basis
     # TODO Switch out arrays for numbers to boost performance
     if N[2] < -0.9999999:  # might have to tweak this value
-        b1 = np.array([0, -1, 0], dtype=np.float64)
-        b2 = np.array([-1, 0, 0], dtype=np.float64)
+        b1x = 0.0
+        b1y = -1.0
+        b1z = 0.0
+
+        b2x = -1.0
+        b2y = 0.0
+        b2z = 0.0
     else:
         a = 1.0 / (1.0 + N[2])
         b = -N[0] * N[1] * a
-        b1 = np.array([1 - N[0] * N[0] * a, b, -N[0]], dtype=np.float64)
-        b2 = np.array([b, 1 - N[1] * N[1] * a, -N[1]], dtype=np.float64)
 
-    return x * b1 + y * b2 + z * N
+        b1x = 1 - N[0] * N[0] * a
+        b1y = b
+        b1z = -N[0]
+
+        b2x = b
+        b2y = 1 - N[1] * N[1] * a
+        b2z = -N[1]
+
+    return np.array([x * b1x + y * b2x + z * N[0], x * b1y + y * b2y + z * N[1] + x * b1z + y * b2z + z * N[2]], dtype=np.float64)
 
 
 @njit
@@ -275,7 +286,7 @@ def trace_ray(
 
     if obj == -1: # No object found
         incoming_light += get_environment_lighting(D) * ray_color
-        return incoming_light
+        return np.clip(incoming_light, 0, 1)
 
     P = O + D * t
 
@@ -297,7 +308,7 @@ def trace_ray(
     ray_color *= colors[obj] # Ray always gets darker
 
     if bounces_left <= 0:
-        return incoming_light
+        return np.clip(incoming_light, 0, 1)
 
     O = P
     D = new_D
@@ -317,7 +328,7 @@ def trace_ray(
                     sphere_centers=sphere_centers,
                     sphere_radii=sphere_radii
                 )
-    return final_col
+    return np.clip(final_col, 0, 1)
 
 
 @njit
