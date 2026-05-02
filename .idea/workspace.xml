@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="c588bbee-3211-442c-b9a3-ad2f545d91f4" name="Changes" comment="Made some renders" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="monte_carlo" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;CVGmagic&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/CVGmagic/My-own-Renderer&quot;,
+    &quot;accountId&quot;: &quot;df0f394a-20b7-4589-8f48-cced41e8e470&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="3CLJtHnVLZFFgfARc5admfeIZAs" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.ray_tracer (2).executor&quot;: &quot;Run&quot;,
+    &quot;Python.ray_tracer.executor&quot;: &quot;Run&quot;,
+    &quot;Python.renderer.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.lookFeel&quot;
+  }
+}</component>
+  <component name="RunManager" selected="Python.ray_tracer">
+    <configuration name="ray_tracer (2)" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="My-own-Renderer" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.13 (PythonProject)" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ray_tracer.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="ray_tracer" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="My-own-Renderer" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.13 (PythonProject)" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ray_tracer.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-fb887030ada0-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.21565.199" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c588bbee-3211-442c-b9a3-ad2f545d91f4" name="Changes" comment="" />
+      <created>1776159130258</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1776159130258</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Started work on the renderer in Python">
+      <option name="closed" value="true" />
+      <created>1776161774039</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1776161774039</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Added Sphere class, which provides intersection function">
+      <option name="closed" value="true" />
+      <created>1776176690146</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1776176690146</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Added objects list">
+      <option name="closed" value="true" />
+      <created>1776176774942</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1776176774942</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Lots of changes. First successful render">
+      <option name="closed" value="true" />
+      <created>1776179498132</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1776179498132</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Added Scene class, to make storing several scenes more convenient">
+      <option name="closed" value="true" />
+      <created>1776179824551</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1776179824551</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Changed entire system to scene based">
+      <option name="closed" value="true" />
+      <created>1776180406016</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1776180406016</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Added shadows, specularity and relfectiveness property">
+      <option name="closed" value="true" />
+      <created>1776242386172</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1776242386172</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Finished the basic Raytracer. Now making performance optimizations">
+      <option name="closed" value="true" />
+      <created>1776265372950</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1776265372951</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Replaced some numpy functions and function calls with inline math or python functions for performance increase">
+      <option name="closed" value="true" />
+      <created>1776266275966</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1776266275966</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Added benchmark function">
+      <option name="closed" value="true" />
+      <created>1776266725191</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1776266725191</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Replaced the shadow check, to stop once any intersection has been found (not necessarily the closest)">
+      <option name="closed" value="true" />
+      <created>1776266927360</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1776266927360</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Removed Ray class, to make rendering faster">
+      <option name="closed" value="true" />
+      <created>1776268590128</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1776268590128</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Added compile function, but so far doesn't get used. Runs without issues">
+      <option name="closed" value="true" />
+      <created>1776270968517</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1776270968517</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Mostly numba compiled. Everything working as intended. Time to render a 300 x 300 is down to 0.76 s, time for a 500 x 500 is down to 2.21 s">
+      <option name="closed" value="true" />
+      <created>1776276322635</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1776276322635</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Mostly numba compiled. Everything working as intended. Time to render a 300 x 300 is down to 0.76 s, time for a 500 x 500 is down to 2.21 s">
+      <option name="closed" value="true" />
+      <created>1776276420901</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1776276420901</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Fully numba compiled. Render time for 300 x 300 down to 0.41 s">
+      <option name="closed" value="true" />
+      <created>1776278524256</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1776278524256</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Started implementing transparent objects">
+      <option name="closed" value="true" />
+      <created>1776752222392</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1776752222392</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Added function for cosine weighted hemisphere sampling">
+      <option name="closed" value="true" />
+      <created>1777622701399</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1777622701399</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Switched hemisphere sampling to frisvad's algorithm, to increase performance">
+      <option name="closed" value="true" />
+      <created>1777623791554</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1777623791554</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Added trace_ray_new dunction and removed old redundant functions. Produces believable output image, but probably still some bugs, because returns floats way larger than 1">
+      <option name="closed" value="true" />
+      <created>1777659638563</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1777659638563</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Found the bug. Reason is, that one light ray can bounce off of several emitting objects and accumulate their brightnesses">
+      <option name="closed" value="true" />
+      <created>1777660085116</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1777660085116</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Bug can be worked around be setting emissible objects' colors to [0, 0, 0], thereby making them absorb all incoming light. Added environment lighting">
+      <option name="closed" value="true" />
+      <created>1777668815573</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1777668815573</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Fixed bugs where sky color would add up several times and overwrite previous colors">
+      <option name="closed" value="true" />
+      <created>1777669081529</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1777669081529</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Added lerp_vector function">
+      <option name="closed" value="true" />
+      <created>1777671170463</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1777671170463</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Switched to recursive approach, for easier implementation of transparent objects">
+      <option name="closed" value="true" />
+      <created>1777713729097</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1777713729097</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Parallelized some loops and added some fastmath for significant speedup">
+      <option name="closed" value="true" />
+      <created>1777716135943</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1777716135943</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Parallelized all pixels for significant speedup">
+      <option name="closed" value="true" />
+      <created>1777716550044</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1777716550044</updated>
+    </task>
+    <task id="LOCAL-00028" summary="Changed random_hemisphere_direction function to generate less temporary arrays">
+      <option name="closed" value="true" />
+      <created>1777717104468</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1777717104468</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Fixed bug with last change and also changed random_cos_weighted_hemisphere_direction">
+      <option name="closed" value="true" />
+      <created>1777717240374</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1777717240374</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Made all functions with floating point calculations use fastmath">
+      <option name="closed" value="true" />
+      <created>1777719044872</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1777719044872</updated>
+    </task>
+    <task id="LOCAL-00031" summary="Added saved_scenes.py, obj_classes.py and a benchmark scene">
+      <option name="closed" value="true" />
+      <created>1777720654457</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1777720654457</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Modified benchmark_scene function to work properly again">
+      <option name="closed" value="true" />
+      <created>1777720909165</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1777720909165</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Found out why fastmath slowed down calculations. Higher CPU utilization likely led to more heat, which lead to throttling, resulting in an overall decrease in efficiency">
+      <option name="closed" value="true" />
+      <created>1777721315416</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1777721315416</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Made trace_ray recursive again for big performance gain (~2x)">
+      <option name="closed" value="true" />
+      <created>1777723585612</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1777723585612</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Added transparent materials, with ior, but no absorption yet. Seems to be working as intended">
+      <option name="closed" value="true" />
+      <created>1777734488858</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1777734488858</updated>
+    </task>
+    <task id="LOCAL-00036" summary="Made some renders">
+      <option name="closed" value="true" />
+      <created>1777735009717</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1777735009717</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Replaced the shadow check, to stop once any intersection has been found (not necessarily the closest)" />
+    <MESSAGE value="Removed Ray class, to make rendering faster" />
+    <MESSAGE value="Added compile function, but so far doesn't get used. Runs without issues" />
+    <MESSAGE value="Mostly numba compiled. Everything working as intended. Time to render a 300 x 300 is down to 0.76 s, time for a 500 x 500 is down to 2.21 s" />
+    <MESSAGE value="Fully numba compiled. Render time for 300 x 300 down to 0.41 s" />
+    <MESSAGE value="Started implementing transparent objects" />
+    <MESSAGE value="Added function for cosine weighted hemisphere sampling" />
+    <MESSAGE value="Switched hemisphere sampling to frisvad's algorithm, to increase performance" />
+    <MESSAGE value="Added trace_ray_new dunction and removed old redundant functions. Produces believable output image, but probably still some bugs, because returns floats way larger than 1" />
+    <MESSAGE value="Found the bug. Reason is, that one light ray can bounce off of several emitting objects and accumulate their brightnesses" />
+    <MESSAGE value="Bug can be worked around be setting emissible objects' colors to [0, 0, 0], thereby making them absorb all incoming light. Added environment lighting" />
+    <MESSAGE value="Fixed bugs where sky color would add up several times and overwrite previous colors" />
+    <MESSAGE value="Added lerp_vector function" />
+    <MESSAGE value="Switched to recursive approach, for easier implementation of transparent objects" />
+    <MESSAGE value="Parallelized some loops and added some fastmath for significant speedup" />
+    <MESSAGE value="Parallelized all pixels for significant speedup" />
+    <MESSAGE value="Changed random_hemisphere_direction function to generate less temporary arrays" />
+    <MESSAGE value="Fixed bug with last change and also changed random_cos_weighted_hemisphere_direction" />
+    <MESSAGE value="Made all functions with floating point calculations use fastmath" />
+    <MESSAGE value="Added saved_scenes.py, obj_classes.py and a benchmark scene" />
+    <MESSAGE value="Modified benchmark_scene function to work properly again" />
+    <MESSAGE value="Found out why fastmath slowed down calculations. Higher CPU utilization likely led to more heat, which lead to throttling, resulting in an overall decrease in efficiency" />
+    <MESSAGE value="Made trace_ray recursive again for big performance gain (~2x)" />
+    <MESSAGE value="Added transparent materials, with ior, but no absorption yet. Seems to be working as intended" />
+    <MESSAGE value="Made some renders" />
+    <option name="LAST_COMMIT_MESSAGE" value="Made some renders" />
+  </component>
+</project>
