@@ -32,6 +32,7 @@ class Scene:
         self.colors = None
         self.emitted_colors = None
         self.emission_strengths = None
+        self.smoothnesses = None
 
         self.sphere_centers = None
         self.sphere_radii = None
@@ -54,6 +55,7 @@ class Scene:
         colors = np.zeros((len(self.objects), 3), dtype=np.float64)
         emitted_colors = np.zeros((len(self.objects), 3), dtype=np.float64)
         emission_strengths = np.zeros(len(self.objects), dtype=np.float64)
+        smoothnesses = np.zeros(len(self.objects), dtype=np.float64)
 
         """Sphere data"""
         sphere_centers = np.zeros((len(self.objects), 3))
@@ -64,6 +66,8 @@ class Scene:
             colors[i] = obj.color
             emitted_colors[i] = obj.emitted_color
             emission_strengths[i] = obj.emission_strength
+            smoothnesses[i] = obj.smoothness
+
 
             if type(obj) == Sphere:
                 obj_types[i] = SPHERE
@@ -74,18 +78,20 @@ class Scene:
         self.colors = colors
         self.emitted_colors = emitted_colors
         self.emission_strengths = emission_strengths
+        self.smoothnesses = smoothnesses
 
         self.sphere_centers = sphere_centers
         self.sphere_radii = sphere_radii
 
 
 class Sphere:
-    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0):
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0):
         self.C = center
         self.r = radius
         self.color = color / 255
         self.emitted_color = emitted_color / 255
         self.emission_strength = emission_strength
+        self.smoothness = smoothness
 
 
 
@@ -251,43 +257,66 @@ def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
 def trace_ray(
         O,
         D,
+        incoming_light,
+        ray_color,
         colors,
         emitted_colors,
         emission_strengths,
-        recursion_limit,
+        smoothnesses,
+        bounces_left,
         obj_types,
         sphere_centers,
         sphere_radii
 ) -> np.ndarray[3]:
     """Traces a ray"""
-    incoming_light = np.zeros(3, dtype=np.float64)
-    ray_color = np.array([1, 1, 1], dtype=np.float64)
 
     # Multiple ray bounces are now implemented iteratively for small performance gain
-    for i in range(recursion_limit):
-        obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
+    obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
 
-        if obj == -1: # No object found
-            incoming_light += get_environment_lighting(D) * ray_color
-            break
+    if obj == -1: # No object found
+        incoming_light += get_environment_lighting(D) * ray_color
+        return incoming_light
 
-        P = O + D * t
+    P = O + D * t
 
-        if obj_types[obj] == SPHERE:
-            N = get_normal_vector_sphere(sphere_centers[obj], P)
-        else:
-            raise TypeError("Unknown Object type encountered")
+    if obj_types[obj] == SPHERE:
+        N = get_normal_vector_sphere(sphere_centers[obj], P)
+    else:
+        raise TypeError("Unknown Object type encountered")
 
-        new_D = random_cos_weighted_hemisphere_direction(N)
+    # Combine diffuse and specular reflection depending on smoothness
+    diffuse_D = random_cos_weighted_hemisphere_direction(N)
+    specular_D = reflect_ray(D, N)
+    new_D = lerp_vector(diffuse_D, specular_D, smoothnesses[obj])
+    new_D /= norm(new_D)
 
-        emitted_light = emitted_colors[obj] * emission_strengths[obj]
-        incoming_light += emitted_light * ray_color # Objects only reflect their color
-        ray_color *= colors[obj] # Ray always gets darker
 
-        O = P
-        D = new_D
+    emitted_light = emitted_colors[obj] * emission_strengths[obj]
+    incoming_light += emitted_light * ray_color # Objects only reflect their color
+    ray_color *= colors[obj] # Ray always gets darker
 
-    return incoming_light
+    if bounces_left <= 0:
+        return incoming_light
+
+    O = P
+    D = new_D
+
+
+    final_col = trace_ray(
+                    O=P,
+                    D=new_D,
+                    incoming_light=incoming_light,
+                    ray_color=ray_color,
+                    colors=colors,
+                    emitted_colors=emitted_colors,
+                    emission_strengths=emission_strengths,
+                    smoothnesses=smoothnesses,
+                    bounces_left=bounces_left - 1,
+                    obj_types=obj_types,
+                    sphere_centers=sphere_centers,
+                    sphere_radii=sphere_radii
+                )
+    return final_col
 
 
 @njit
@@ -385,6 +414,7 @@ def fill_image(
         colors,
         emitted_colors,
         emission_strengths,
+        smoothnesses,
         recursion_limit,
         rays_per_pixel,
         obj_types,
@@ -396,15 +426,22 @@ def fill_image(
         for cy in range(-ch // 2 + 1, ch // 2 + 1):
             V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
             D = V - O
+
             avg_col = np.array([0, 0, 0], dtype=np.float64)
+
             for _ in range(rays_per_pixel):
+                incoming_light = np.zeros(3, dtype=np.float64)
+                ray_color = np.ones(3, dtype=np.float64)
                 avg_col += trace_ray(
                     O=O,
                     D=D,
+                    incoming_light=incoming_light,
+                    ray_color=ray_color,
                     colors=colors,
                     emitted_colors=emitted_colors,
                     emission_strengths=emission_strengths,
-                    recursion_limit=recursion_limit,
+                    smoothnesses=smoothnesses,
+                    bounces_left=recursion_limit,
                     obj_types=obj_types,
                     sphere_centers=sphere_centers,
                     sphere_radii=sphere_radii
@@ -453,12 +490,78 @@ def render_scene(scene) -> None:
         colors=colors,
         emitted_colors=emitted_colors,
         emission_strengths=emission_strengths,
+        smoothnesses=scene.smoothnesses,
         recursion_limit=max_rec_depth,
         rays_per_pixel=rays_per_pixel,
         obj_types=obj_types,
         sphere_centers=sphere_centers,
         sphere_radii=sphere_radii
     )
+
+    plt.imshow(scene.img)
+    plt.show()
+
+
+def render_scene_over_time(scene) -> None:
+    """Renders a scene from the given scene object"""
+    scene.compile()
+
+    """Unpack all scene arguments, to avoid object access inside loops for performance reasons"""
+
+    max_rec_depth = scene.max_rec_depth
+    rays_per_pixel = scene.rays_per_pixel
+
+    cw = scene.cw
+    ch = scene.ch
+    img = scene.img
+
+    vw = scene.vw
+    vh = scene.vh
+    d = scene.d
+
+    """Camera position"""
+    O = scene.O
+
+    """Array for faster runtime, will be set using compile"""
+    obj_types = scene.obj_types  # Stores the type of each Object
+    colors = scene.colors
+    emitted_colors = scene.emitted_colors
+    emission_strengths = scene.emission_strengths
+
+    sphere_centers = scene.sphere_centers
+    sphere_radii = scene.sphere_radii
+
+    cur_img = np.zeros_like(scene.img)
+    fig, ax = plt.subplots()
+    img_display = ax.imshow(scene.img)
+    plt.show(block=False)
+
+    for i in range(rays_per_pixel):
+        fill_image(
+            cw=scene.cw,
+            ch=scene.ch,
+            img=scene.img,
+            vw=scene.vw,
+            vh=scene.vh,
+            d=scene.d,
+            O=O,
+            colors=colors,
+            emitted_colors=emitted_colors,
+            emission_strengths=emission_strengths,
+            smoothnesses=scene.smoothnesses,
+            recursion_limit=max_rec_depth,
+            rays_per_pixel=1,
+            obj_types=obj_types,
+            sphere_centers=sphere_centers,
+            sphere_radii=sphere_radii
+        )
+
+        weight = 1 / (i + 1)
+        cur_img = cur_img * (1 - weight) + scene.img * weight
+        img_display.set_data(cur_img)
+        plt.pause(1e-99)
+
+
 
 
 """Initialize scene"""
@@ -469,7 +572,7 @@ scene = Scene(
     vh = 1,
     d = 1,
     O = np.array([0, 0, 0], dtype=np.float64),
-    max_rec_depth=3,
+    max_rec_depth=4,
     rays_per_pixel=10
 )
 
@@ -482,12 +585,14 @@ scene.add_objects(
     Sphere(
             center=np.array([10, -1, 20]),
             radius=4,
-            color=np.array([0, 0, 255]), # Blue
+            color=np.array([255, 255, 255]), # White
+            smoothness=1 # reflective
            ),
     Sphere(
             center=np.array([0, -2, 16]),
             radius=2,
             color=np.array([0, 255, 0]), # Green
+            smoothness=0
            ),
     Sphere(
             center=np.array([3, -54, 20]),
@@ -509,5 +614,3 @@ scene.add_objects(
 
 render_scene(scene)
 
-plt.imshow(scene.img)
-plt.show()
