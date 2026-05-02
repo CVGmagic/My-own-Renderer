@@ -28,8 +28,10 @@ class Scene:
         self.emitted_colors = None
         self.emission_strengths = None
         self.smoothnesses = None
+        # Transparent objects
         self.is_glass = None
         self.ref_idxs = None
+        self.absorptions = None
 
         self.sphere_centers = None
         self.sphere_radii = None
@@ -55,6 +57,7 @@ class Scene:
         smoothnesses = np.zeros(len(self.objects), dtype=np.float64)
         is_glass = np.zeros(len(self.objects), dtype=bool)
         ref_idxs = np.ones(len(self.objects), dtype=np.float64)
+        absorptions = np.zeros(len(self.objects), dtype=np.float64)
 
         """Sphere data"""
         sphere_centers = np.zeros((len(self.objects), 3))
@@ -62,12 +65,19 @@ class Scene:
 
         for i, obj in enumerate(self.objects):
 
-            colors[i] = obj.color
+            # Absorption is precomputed for transparent objects
+            if obj.is_glass:
+                colors[i] = np.maximum(obj.color, 0.001) # to avoid log(0) -> undefined
+                colors[i] = -np.log(colors[i])
+            else:
+                colors[i] = obj.color
+
             emitted_colors[i] = obj.emitted_color
             emission_strengths[i] = obj.emission_strength
             smoothnesses[i] = obj.smoothness
             is_glass[i] = obj.is_glass
             ref_idxs[i] = obj.ref_idx
+            absorptions[i] = obj.absorption
 
 
             if type(obj) == Sphere:
@@ -82,13 +92,14 @@ class Scene:
         self.smoothnesses = smoothnesses
         self.is_glass = is_glass
         self.ref_idxs = ref_idxs
+        self.absorptions = absorptions
 
         self.sphere_centers = sphere_centers
         self.sphere_radii = sphere_radii
 
 
 class Sphere:
-    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1):
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1, absorption=0):
         self.C = center
         self.r = radius
         self.color = color / 255
@@ -97,3 +108,4 @@ class Sphere:
         self.smoothness = smoothness
         self.is_glass = is_glass
         self.ref_idx = ref_idx
+        self.absorption = absorption

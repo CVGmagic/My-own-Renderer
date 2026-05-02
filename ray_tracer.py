@@ -9,16 +9,6 @@ from obj_classes import *
 from saved_scenes import benchmark_scene
 
 
-
-
-class Light:
-    def __init__(self, type: str, intensity, position=None, direction=None):
-        self.type = type
-        self.intensity = intensity
-        self.position = position
-        self.direction = direction
-
-
 @njit
 def canvas_to_screen(cx: int, cy: int, cw: int, ch: int) -> tuple[int]:
     """Converts canvas coordinates to screen coordinates"""
@@ -36,7 +26,7 @@ def put_pixel(img, cx: int, cy: int, cw: int, ch: int, col: np.ndarray[3]) -> No
     return
 
 
-@njit
+@njit(fastmath=True)
 def canvas_to_viewport(cx: int, cy: int, cw: int, ch: int, vw: float, vh: float, d: float) -> np.ndarray[3]:
     """Converts canvas coordinates to viewport coordinates"""
     if d != 1:
@@ -48,7 +38,7 @@ def canvas_to_viewport(cx: int, cy: int, cw: int, ch: int, vw: float, vh: float,
     return np.array([vx, vy, vz], dtype=np.float64)
 
 
-@njit
+@njit(fastmath=True)
 def get_normal_vector_sphere(C: np.ndarray[3], P: np.ndarray[3]) -> np.ndarray[3]:
     """Returns a normaalized surface normal"""
     N = P - C
@@ -147,14 +137,14 @@ def random_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
     return np.array([x * b1x + y * b2x, x * b1y + y * b2y, x * b1z + y * b2z], dtype=np.float64) + z * N
 
 
-@njit
-def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
+@njit(fastmath=True)
+def random_cos_weighted_hemisphere_direction(N: np.ndarray[3], rand_state) -> np.ndarray[3]:
     """Returns a normed vetor pointing in a random direction (cosine weighted) in
     a hemisphere"""
 
     # Generate two random numbers
-    u1 = np.random.random()
-    u2 = np.random.random()
+    u1 = rand(rand_state)
+    u2 = rand(rand_state)
 
     # Generate evenly distributed points accross a disk
     r = math.sqrt(u1) # because area grows with r^2
@@ -199,10 +189,12 @@ def trace_ray(
         smoothnesses,
         is_glass,
         ref_idxs,
+        absorptions,
         bounces_left,
         obj_types,
         sphere_centers,
-        sphere_radii
+        sphere_radii,
+        rand_state
 ) -> np.ndarray[3]:
     """Traces a ray"""
     incoming_light = np.zeros(3, dtype=np.float64)
@@ -231,6 +223,8 @@ def trace_ray(
                 n_new = 1.0
                 n_cur = ref_idxs[obj]
                 N = -N # Flip normal vector, because that's what functions expect
+                transmittance = np.exp(-colors[obj] * absorptions[obj] * norm(D) * t)
+                ray_color *= transmittance
 
 
             reflection_chance = compute_reflection_fresnel(D, N, n_cur, n_new)
@@ -244,10 +238,10 @@ def trace_ray(
         else:
             # Combine diffuse and specular reflection depending on smoothness
             specular_chance = smoothnesses[obj]
-            if np.random.random() < specular_chance:
+            if rand(rand_state) < specular_chance:
                 new_D = reflect_ray(D, N)
             else:
-                new_D = random_cos_weighted_hemisphere_direction(N)
+                new_D = random_cos_weighted_hemisphere_direction(N, rand_state)
 
 
             emitted_light = emitted_colors[obj] * emission_strengths[obj]
@@ -261,7 +255,7 @@ def trace_ray(
     return incoming_light
 
 
-@njit
+@njit(fastmath=True)
 def reflect_ray(D, N) -> np.ndarray[3]:
     """Reflects an incoming ray on a surface described by the surface normal"""
     return D - 2 * dot(D, N) * N
@@ -272,12 +266,12 @@ def norm(v) -> float:
     return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
 
 
-@njit
+@njit(fastmath=True)
 def dot(v1, v2) -> float:
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
 
 
-@njit
+@njit(fastmath=True)
 def cross(v1, v2) -> np.ndarray[3]:
     x = v1[1] * v2[2] - v1[2] * v2[1]
     y = v1[2] * v2[0] - v1[0] * v2[2]
@@ -285,7 +279,7 @@ def cross(v1, v2) -> np.ndarray[3]:
     return np.array([x, y, z])
 
 
-@njit
+@njit(fastmath=True)
 def refract_ray(R, N, n_cur, n_new) -> np.ndarray[3]:
     R_hat = R / norm(R)
     eta = n_cur / n_new
@@ -295,7 +289,7 @@ def refract_ray(R, N, n_cur, n_new) -> np.ndarray[3]:
     return T
 
 
-@njit
+@njit(fastmath=True)
 def compute_reflection_fresnel(R, N, n_cur, n_new) -> float:
     cos_phi = dot(-R, N) / norm(R)
     sqrt_R_0 = (n_cur - n_new) / (n_cur + n_new)
@@ -321,6 +315,13 @@ def get_environment_lighting(D):
         return ground_color
     else:
         return sky_color
+
+
+@njit(fastmath=True)
+def rand(state) -> float:
+    """Generates a random number between 0 and 1 and changes the state"""
+    state[0] = (1664525 * state[0] + 1013904223) & 0xFFFFFFFF
+    return state[0] / 4294967296.0
 
 
 def benchmark(scene, runs=10, warmup=2):
@@ -369,6 +370,9 @@ def benchmark(scene, runs=10, warmup=2):
             emitted_colors=emitted_colors,
             emission_strengths=emission_strengths,
             smoothnesses=scene.smoothnesses,
+            is_glass=scene.is_glass,
+            ref_idxs=scene.ref_idxs,
+            absorptions=scene.absorptions,
             recursion_limit=max_rec_depth,
             rays_per_pixel=rays_per_pixel,
             obj_types=obj_types,
@@ -393,6 +397,9 @@ def benchmark(scene, runs=10, warmup=2):
             emitted_colors=emitted_colors,
             emission_strengths=emission_strengths,
             smoothnesses=scene.smoothnesses,
+            is_glass=scene.is_glass,
+            ref_idxs=scene.ref_idxs,
+            absorptions=scene.absorptions,
             recursion_limit=max_rec_depth,
             rays_per_pixel=rays_per_pixel,
             obj_types=obj_types,
@@ -426,6 +433,7 @@ def fill_image(
         smoothnesses,
         is_glass,
         ref_idxs,
+        absorptions,
         recursion_limit,
         rays_per_pixel,
         obj_types,
@@ -445,6 +453,9 @@ def fill_image(
         V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
         D = V - O
 
+        # Generates a seed for the randomizer for each pixel
+        rand_state = np.array([(i * 9781 + 1) & 0xFFFFFFFF], dtype=np.uint32)
+
         avg_col = np.array([0, 0, 0], dtype=np.float64)
 
         for _ in range(rays_per_pixel):
@@ -457,10 +468,12 @@ def fill_image(
                 smoothnesses=smoothnesses,
                 is_glass=is_glass,
                 ref_idxs=ref_idxs,
+                absorptions=absorptions,
                 bounces_left=recursion_limit,
                 obj_types=obj_types,
                 sphere_centers=sphere_centers,
-                sphere_radii=sphere_radii
+                sphere_radii=sphere_radii,
+                rand_state=rand_state
             )
         avg_col /= rays_per_pixel
         put_pixel(img, cx, cy, cw, ch, col=avg_col)
@@ -510,6 +523,7 @@ def render_scene(scene) -> None:
         smoothnesses=scene.smoothnesses,
         is_glass=is_glass,
         ref_idxs=scene.ref_idxs,
+        absorptions=scene.absorptions,
         recursion_limit=max_rec_depth,
         rays_per_pixel=rays_per_pixel,
         obj_types=obj_types,
@@ -575,6 +589,7 @@ def render_scene_over_time(scene) -> None:
             smoothnesses=scene.smoothnesses,
             ref_idxs=scene.ref_idxs,
             is_glass=is_glass,
+            absorptions=scene.absorptions,
             recursion_limit=max_rec_depth,
             rays_per_pixel=1,
             obj_types=obj_types,
@@ -621,10 +636,11 @@ scene.add_objects(
     Sphere(
             center=np.array([0, -2, 16]),
             radius=2,
-            color=np.array([0, 255, 0]), # Green
+            color=np.array([0, 255, 238]), # Turquoise
             smoothness=0,
             is_glass=True,
-            ref_idx=1.5 # ~Glass
+            ref_idx=1.5, # ~Glass
+            absorption=10
            ),
     Sphere(
             center=np.array([3, -54, 20]),
@@ -647,7 +663,7 @@ scene.add_objects(
 
 
 #scene.img.fill(255)
-#benchmark(benchmark_scene)
+benchmark(benchmark_scene)
 
-render_scene_over_time(scene)
+#render_scene_over_time(scene)
 

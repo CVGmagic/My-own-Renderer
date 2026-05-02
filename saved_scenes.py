@@ -1,7 +1,7 @@
 import numpy as np
 from obj_classes import *
 
-"""Initialize scene"""
+"""Original Benchmark Scene"""
 benchmark_scene = Scene(
     cw = 450,
     ch = 300,

@@ -18,3 +18,6 @@ Mostly Numba compiled
 
 Fully Numba compiled
 0.41 s
+
+Monte carlo raytracing benchmark scene
+0.84s
