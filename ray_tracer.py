@@ -616,7 +616,7 @@ scene.add_objects(
             center=np.array([10, -1, 20]),
             radius=4,
             color=np.array([255, 255, 255]), # White
-            smoothness=0 # reflective
+            smoothness=1 # reflective
            ),
     Sphere(
             center=np.array([0, -2, 16]),
@@ -641,7 +641,7 @@ scene.add_objects(
     Sphere(
         center=np.array([2, -2, 20]),
         radius=2,
-        color=np.array([255, 0, 0])
+        color=np.array([0, 0, 255])
     )
 )
 
