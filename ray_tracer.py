@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cProfile
 import math
-from numba import njit
+from numba import njit, prange
 from object_type_flags import *
 from light_type_flags import *
 
@@ -253,7 +253,7 @@ def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
     return x * b1 + y * b2 + z * N
 
 
-@njit
+@njit(fastmath=True)
 def trace_ray(
         O,
         D,
@@ -285,10 +285,11 @@ def trace_ray(
         raise TypeError("Unknown Object type encountered")
 
     # Combine diffuse and specular reflection depending on smoothness
-    diffuse_D = random_cos_weighted_hemisphere_direction(N)
-    specular_D = reflect_ray(D, N)
-    new_D = lerp_vector(diffuse_D, specular_D, smoothnesses[obj])
-    new_D /= norm(new_D)
+    specular_chance = smoothnesses[obj]
+    if np.random.random() < specular_chance:
+        new_D = reflect_ray(D, N)
+    else:
+        new_D = random_cos_weighted_hemisphere_direction(N)
 
 
     emitted_light = emitted_colors[obj] * emission_strengths[obj]
@@ -320,8 +321,9 @@ def trace_ray(
 
 
 @njit
-def reflect_ray(R, N) -> np.ndarray[3]:
-    return 2 * N * np.dot(N, R) - R
+def reflect_ray(D, N) -> np.ndarray[3]:
+    """Reflects an incoming ray on a surface described by the surface normal"""
+    return D - 2 * dot(D, N) * N
 
 
 @njit
@@ -402,7 +404,7 @@ def benchmark(scene, runs=10, warmup=2):
     print("Max:", max(times))
 
 
-@njit
+@njit(fastmath=True, parallel=True)
 def fill_image(
         cw,
         ch,
@@ -422,7 +424,7 @@ def fill_image(
         sphere_radii
 ) -> None:
     """Fills the image in"""
-    for cx in range(-cw // 2, cw // 2):
+    for cx in prange(-cw // 2, cw // 2):
         for cy in range(-ch // 2 + 1, ch // 2 + 1):
             V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
             D = V - O
@@ -497,7 +499,7 @@ def render_scene(scene) -> None:
         sphere_centers=sphere_centers,
         sphere_radii=sphere_radii
     )
-
+    plt.title(f"Resolution: {scene.cw}x{scene.ch} | Rays per pixel: {scene.rays_per_pixel}")
     plt.imshow(scene.img)
     plt.show()
 
@@ -534,9 +536,13 @@ def render_scene_over_time(scene) -> None:
     cur_img = np.zeros_like(scene.img)
     fig, ax = plt.subplots()
     img_display = ax.imshow(scene.img)
+    ax.set_title("Starting render...")
     plt.show(block=False)
 
-    for i in range(rays_per_pixel):
+    lim = scene.rays_per_pixel
+    i = 0
+    update_frequency = 10
+    while i < lim:
         fill_image(
             cw=scene.cw,
             ch=scene.ch,
@@ -558,10 +564,14 @@ def render_scene_over_time(scene) -> None:
 
         weight = 1 / (i + 1)
         cur_img = cur_img * (1 - weight) + scene.img * weight
-        img_display.set_data(cur_img)
-        plt.pause(1e-99)
+        if i % update_frequency == 0:
+            img_display.set_data(np.power(cur_img, 0.45)) # 0.45
+            ax.set_title(f"Resolution: {scene.cw}x{scene.ch} | Rays per pixel: {i}")
+            fig.canvas.draw_idle()
+            fig.canvas.flush_events()
+            plt.pause(1e-32)
 
-
+        i += 1
 
 
 """Initialize scene"""
@@ -573,7 +583,7 @@ scene = Scene(
     d = 1,
     O = np.array([0, 0, 0], dtype=np.float64),
     max_rec_depth=4,
-    rays_per_pixel=10
+    rays_per_pixel=np.inf
 )
 
 scene.add_objects(
@@ -612,5 +622,5 @@ scene.add_objects(
 #scene.img.fill(255)
 #benchmark(scene)
 
-render_scene(scene)
+render_scene_over_time(scene)
 
