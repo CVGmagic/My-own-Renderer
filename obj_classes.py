@@ -1,5 +1,7 @@
 import numpy as np
 from object_type_flags import *
+
+
 class Scene:
     def __init__(self, cw, ch, vw, vh, d, O, max_rec_depth=3, rays_per_pixel=1):
         self.objects = []
@@ -10,7 +12,7 @@ class Scene:
         """Controls image resolution"""
         self.cw: int = cw
         self.ch: int = ch
-        self.img = np.full((ch, cw, 3), 255, dtype=np.float64)
+        self.img = np.ones((ch, cw, 3), dtype=np.float64)
 
         """Controls FOV"""
         self.vw = vw
@@ -26,6 +28,8 @@ class Scene:
         self.emitted_colors = None
         self.emission_strengths = None
         self.smoothnesses = None
+        self.is_glass = None
+        self.ref_idxs = None
 
         self.sphere_centers = None
         self.sphere_radii = None
@@ -49,6 +53,8 @@ class Scene:
         emitted_colors = np.zeros((len(self.objects), 3), dtype=np.float64)
         emission_strengths = np.zeros(len(self.objects), dtype=np.float64)
         smoothnesses = np.zeros(len(self.objects), dtype=np.float64)
+        is_glass = np.zeros(len(self.objects), dtype=bool)
+        ref_idxs = np.ones(len(self.objects), dtype=np.float64)
 
         """Sphere data"""
         sphere_centers = np.zeros((len(self.objects), 3))
@@ -60,6 +66,8 @@ class Scene:
             emitted_colors[i] = obj.emitted_color
             emission_strengths[i] = obj.emission_strength
             smoothnesses[i] = obj.smoothness
+            is_glass[i] = obj.is_glass
+            ref_idxs[i] = obj.ref_idx
 
 
             if type(obj) == Sphere:
@@ -72,16 +80,20 @@ class Scene:
         self.emitted_colors = emitted_colors
         self.emission_strengths = emission_strengths
         self.smoothnesses = smoothnesses
+        self.is_glass = is_glass
+        self.ref_idxs = ref_idxs
 
         self.sphere_centers = sphere_centers
         self.sphere_radii = sphere_radii
 
 
 class Sphere:
-    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0):
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1):
         self.C = center
         self.r = radius
         self.color = color / 255
         self.emitted_color = emitted_color / 255
         self.emission_strength = emission_strength
         self.smoothness = smoothness
+        self.is_glass = is_glass
+        self.ref_idx = ref_idx

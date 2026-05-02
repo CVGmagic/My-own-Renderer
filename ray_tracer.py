@@ -197,6 +197,8 @@ def trace_ray(
         emitted_colors,
         emission_strengths,
         smoothnesses,
+        is_glass,
+        ref_idxs,
         bounces_left,
         obj_types,
         sphere_centers,
@@ -212,7 +214,7 @@ def trace_ray(
 
         if obj == -1: # No object found
             incoming_light += get_environment_lighting(D) * ray_color
-            return np.clip(incoming_light, 0, 1)
+            break
 
         P = O + D * t
 
@@ -221,17 +223,37 @@ def trace_ray(
         else:
             raise TypeError("Unknown Object type encountered")
 
-        # Combine diffuse and specular reflection depending on smoothness
-        specular_chance = smoothnesses[obj]
-        if np.random.random() < specular_chance:
-            new_D = reflect_ray(D, N)
+        if is_glass[obj]:
+            if dot(N, D) < 0: # Front face
+                n_cur = 1.0
+                n_new = ref_idxs[obj]
+            else: # Back face
+                n_new = 1.0
+                n_cur = ref_idxs[obj]
+                N = -N # Flip normal vector, because that's what functions expect
+
+
+            reflection_chance = compute_reflection_fresnel(D, N, n_cur, n_new)
+            if np.random.random() < reflection_chance: # Reflect ray
+                new_D = reflect_ray(D, N)
+            else: # Refract ray
+                new_D = refract_ray(D, N, n_cur, n_new)
+                new_D /= norm(new_D)
+
+
         else:
-            new_D = random_cos_weighted_hemisphere_direction(N)
+            # Combine diffuse and specular reflection depending on smoothness
+            specular_chance = smoothnesses[obj]
+            if np.random.random() < specular_chance:
+                new_D = reflect_ray(D, N)
+            else:
+                new_D = random_cos_weighted_hemisphere_direction(N)
 
 
-        emitted_light = emitted_colors[obj] * emission_strengths[obj]
-        incoming_light += emitted_light * ray_color # Objects only reflect their color
-        ray_color *= colors[obj] # Ray always gets darker
+            emitted_light = emitted_colors[obj] * emission_strengths[obj]
+            incoming_light += emitted_light * ray_color # Objects only reflect their color
+            ray_color *= colors[obj] # Ray always gets darker
+
 
         O = P
         D = new_D
@@ -245,7 +267,7 @@ def reflect_ray(D, N) -> np.ndarray[3]:
     return D - 2 * dot(D, N) * N
 
 
-@njit
+@njit(fastmath=True)
 def norm(v) -> float:
     return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
 
@@ -269,12 +291,12 @@ def refract_ray(R, N, n_cur, n_new) -> np.ndarray[3]:
     eta = n_cur / n_new
     cos_theta_1 = dot(-R_hat, N)
     cos_theta_2 = math.sqrt(1 - eta**2 * (1 - cos_theta_1**2))
-    T = eta * R_hat + (eta * cos_theta_1 - cos_thets_2) * N
+    T = eta * R_hat + (eta * cos_theta_1 - cos_theta_2) * N
     return T
 
 
 @njit
-def compute_reflection(R, N, n_cur, n_new) -> float:
+def compute_reflection_fresnel(R, N, n_cur, n_new) -> float:
     cos_phi = dot(-R, N) / norm(R)
     sqrt_R_0 = (n_cur - n_new) / (n_cur + n_new)
     R_0 = sqrt_R_0 * sqrt_R_0
@@ -402,6 +424,8 @@ def fill_image(
         emitted_colors,
         emission_strengths,
         smoothnesses,
+        is_glass,
+        ref_idxs,
         recursion_limit,
         rays_per_pixel,
         obj_types,
@@ -431,6 +455,8 @@ def fill_image(
                 emitted_colors=emitted_colors,
                 emission_strengths=emission_strengths,
                 smoothnesses=smoothnesses,
+                is_glass=is_glass,
+                ref_idxs=ref_idxs,
                 bounces_left=recursion_limit,
                 obj_types=obj_types,
                 sphere_centers=sphere_centers,
@@ -465,6 +491,7 @@ def render_scene(scene) -> None:
     colors = scene.colors
     emitted_colors = scene.emitted_colors
     emission_strengths = scene.emission_strengths
+    is_glass = scene.is_glass
 
     sphere_centers = scene.sphere_centers
     sphere_radii = scene.sphere_radii
@@ -481,6 +508,8 @@ def render_scene(scene) -> None:
         emitted_colors=emitted_colors,
         emission_strengths=emission_strengths,
         smoothnesses=scene.smoothnesses,
+        is_glass=is_glass,
+        ref_idxs=scene.ref_idxs,
         recursion_limit=max_rec_depth,
         rays_per_pixel=rays_per_pixel,
         obj_types=obj_types,
@@ -517,6 +546,7 @@ def render_scene_over_time(scene) -> None:
     colors = scene.colors
     emitted_colors = scene.emitted_colors
     emission_strengths = scene.emission_strengths
+    is_glass = scene.is_glass
 
     sphere_centers = scene.sphere_centers
     sphere_radii = scene.sphere_radii
@@ -543,6 +573,8 @@ def render_scene_over_time(scene) -> None:
             emitted_colors=emitted_colors,
             emission_strengths=emission_strengths,
             smoothnesses=scene.smoothnesses,
+            ref_idxs=scene.ref_idxs,
+            is_glass=is_glass,
             recursion_limit=max_rec_depth,
             rays_per_pixel=1,
             obj_types=obj_types,
@@ -570,8 +602,8 @@ scene = Scene(
     vh = 1,
     d = 1,
     O = np.array([0, 0, 0], dtype=np.float64),
-    max_rec_depth=4,
-    rays_per_pixel=10
+    max_rec_depth=5,
+    rays_per_pixel=1000
 )
 
 scene.add_objects(
@@ -584,13 +616,15 @@ scene.add_objects(
             center=np.array([10, -1, 20]),
             radius=4,
             color=np.array([255, 255, 255]), # White
-            smoothness=1 # reflective
+            smoothness=0 # reflective
            ),
     Sphere(
             center=np.array([0, -2, 16]),
             radius=2,
             color=np.array([0, 255, 0]), # Green
-            smoothness=0
+            smoothness=0,
+            is_glass=True,
+            ref_idx=1.5 # ~Glass
            ),
     Sphere(
             center=np.array([3, -54, 20]),
@@ -603,12 +637,17 @@ scene.add_objects(
         color=np.array([0, 0, 0]),
         emitted_color=np.array([255, 255, 255]),
         emission_strength=2 # Light source
-        )
+        ),
+    Sphere(
+        center=np.array([2, -2, 20]),
+        radius=2,
+        color=np.array([255, 0, 0])
+    )
 )
 
 
 #scene.img.fill(255)
-benchmark(benchmark_scene)
+#benchmark(benchmark_scene)
 
-#render_scene_over_time(scene)
+render_scene_over_time(scene)
 
