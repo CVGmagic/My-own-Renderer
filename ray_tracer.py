@@ -371,6 +371,7 @@ def benchmark(scene, runs=10, warmup=2):
             sphere_radii=sphere_radii
         )
 
+    print("Warmup complete, beginning benchmarking")
     times = []
     for _ in range(runs):
         scene.img.fill(1.0)
