@@ -6,6 +6,7 @@ from numba import njit, prange
 from object_type_flags import *
 from light_type_flags import *
 from obj_classes import *
+from saved_scenes import benchmark_scene
 
 
 
@@ -318,18 +319,80 @@ def get_environment_lighting(D):
 
 
 def benchmark(scene, runs=10, warmup=2):
+    """Benchmarks a scene from the given scene object"""
     import time
+
+    scene.compile()
+
+    """Unpack all scene arguments, to avoid object access inside loops for performance reasons"""
+
+    max_rec_depth = scene.max_rec_depth
+    rays_per_pixel = scene.rays_per_pixel
+
+    cw = scene.cw
+    ch = scene.ch
+    img = scene.img
+
+    vw = scene.vw
+    vh = scene.vh
+    d = scene.d
+
+    """Camera position"""
+    O = scene.O
+
+    """Array for faster runtime, will be set using compile"""
+    obj_types = scene.obj_types  # Stores the type of each Object
+    colors = scene.colors
+    emitted_colors = scene.emitted_colors
+    emission_strengths = scene.emission_strengths
+
+    sphere_centers = scene.sphere_centers
+    sphere_radii = scene.sphere_radii
 
     # warmup
     for _ in range(warmup):
-        scene.img.fill(255)
-        render_scene(scene)
+        scene.img.fill(1.0)
+        fill_image(
+            cw=scene.cw,
+            ch=scene.ch,
+            img=scene.img,
+            vw=scene.vw,
+            vh=scene.vh,
+            d=scene.d,
+            O=O,
+            colors=colors,
+            emitted_colors=emitted_colors,
+            emission_strengths=emission_strengths,
+            smoothnesses=scene.smoothnesses,
+            recursion_limit=max_rec_depth,
+            rays_per_pixel=rays_per_pixel,
+            obj_types=obj_types,
+            sphere_centers=sphere_centers,
+            sphere_radii=sphere_radii
+        )
 
     times = []
     for _ in range(runs):
-        scene.img.fill(255)
+        scene.img.fill(1.0)
         start = time.perf_counter()
-        render_scene(scene)
+        fill_image(
+            cw=scene.cw,
+            ch=scene.ch,
+            img=scene.img,
+            vw=scene.vw,
+            vh=scene.vh,
+            d=scene.d,
+            O=O,
+            colors=colors,
+            emitted_colors=emitted_colors,
+            emission_strengths=emission_strengths,
+            smoothnesses=scene.smoothnesses,
+            recursion_limit=max_rec_depth,
+            rays_per_pixel=rays_per_pixel,
+            obj_types=obj_types,
+            sphere_centers=sphere_centers,
+            sphere_radii=sphere_radii
+        )
         end = time.perf_counter()
         times.append(end - start)
 
@@ -337,6 +400,9 @@ def benchmark(scene, runs=10, warmup=2):
     print("Avg:", sum(times)/len(times))
     print("Min:", min(times))
     print("Max:", max(times))
+    plt.title(f"Resolution: {scene.cw}x{scene.ch} | Rays per pixel: {scene.rays_per_pixel}")
+    plt.plot(times)
+    plt.show()
 
 
 @njit(fastmath=True, parallel=True)
@@ -562,7 +628,7 @@ scene.add_objects(
 
 
 #scene.img.fill(255)
-benchmark(scene)
+benchmark(benchmark_scene)
 
 #render_scene_over_time(scene)
 

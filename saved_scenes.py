@@ -13,7 +13,7 @@ benchmark_scene = Scene(
     rays_per_pixel=10
 )
 
-scene.add_objects(
+benchmark_scene.add_objects(
     Sphere(
             center=np.array([-8, -4, 20]),
             radius=1,
