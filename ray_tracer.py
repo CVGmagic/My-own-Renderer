@@ -193,8 +193,6 @@ def random_cos_weighted_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
 def trace_ray(
         O,
         D,
-        incoming_light,
-        ray_color,
         colors,
         emitted_colors,
         emission_strengths,
@@ -205,55 +203,40 @@ def trace_ray(
         sphere_radii
 ) -> np.ndarray[3]:
     """Traces a ray"""
+    incoming_light = np.zeros(3, dtype=np.float64)
+    ray_color = np.ones(3, dtype=np.float64)
 
-    # Multiple ray bounces are now implemented iteratively for small performance gain
-    obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
+    for i in range(bounces_left):
+        # Multiple ray bounces are now implemented iteratively for small performance gain
+        obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, t_min=0.001, t_max=np.inf)
 
-    if obj == -1: # No object found
-        incoming_light += get_environment_lighting(D) * ray_color
-        return np.clip(incoming_light, 0, 1)
+        if obj == -1: # No object found
+            incoming_light += get_environment_lighting(D) * ray_color
+            return np.clip(incoming_light, 0, 1)
 
-    P = O + D * t
+        P = O + D * t
 
-    if obj_types[obj] == SPHERE:
-        N = get_normal_vector_sphere(sphere_centers[obj], P)
-    else:
-        raise TypeError("Unknown Object type encountered")
+        if obj_types[obj] == SPHERE:
+            N = get_normal_vector_sphere(sphere_centers[obj], P)
+        else:
+            raise TypeError("Unknown Object type encountered")
 
-    # Combine diffuse and specular reflection depending on smoothness
-    specular_chance = smoothnesses[obj]
-    if np.random.random() < specular_chance:
-        new_D = reflect_ray(D, N)
-    else:
-        new_D = random_cos_weighted_hemisphere_direction(N)
-
-
-    emitted_light = emitted_colors[obj] * emission_strengths[obj]
-    incoming_light += emitted_light * ray_color # Objects only reflect their color
-    ray_color *= colors[obj] # Ray always gets darker
-
-    if bounces_left <= 0:
-        return np.clip(incoming_light, 0, 1)
-
-    O = P
-    D = new_D
+        # Combine diffuse and specular reflection depending on smoothness
+        specular_chance = smoothnesses[obj]
+        if np.random.random() < specular_chance:
+            new_D = reflect_ray(D, N)
+        else:
+            new_D = random_cos_weighted_hemisphere_direction(N)
 
 
-    final_col = trace_ray(
-                    O=P,
-                    D=new_D,
-                    incoming_light=incoming_light,
-                    ray_color=ray_color,
-                    colors=colors,
-                    emitted_colors=emitted_colors,
-                    emission_strengths=emission_strengths,
-                    smoothnesses=smoothnesses,
-                    bounces_left=bounces_left - 1,
-                    obj_types=obj_types,
-                    sphere_centers=sphere_centers,
-                    sphere_radii=sphere_radii
-                )
-    return np.clip(final_col, 0, 1)
+        emitted_light = emitted_colors[obj] * emission_strengths[obj]
+        incoming_light += emitted_light * ray_color # Objects only reflect their color
+        ray_color *= colors[obj] # Ray always gets darker
+
+        O = P
+        D = new_D
+
+    return incoming_light
 
 
 @njit
@@ -441,13 +424,9 @@ def fill_image(
         avg_col = np.array([0, 0, 0], dtype=np.float64)
 
         for _ in range(rays_per_pixel):
-            incoming_light = np.zeros(3, dtype=np.float64)
-            ray_color = np.ones(3, dtype=np.float64)
             avg_col += trace_ray(
                 O=O,
                 D=D,
-                incoming_light=incoming_light,
-                ray_color=ray_color,
                 colors=colors,
                 emitted_colors=emitted_colors,
                 emission_strengths=emission_strengths,
