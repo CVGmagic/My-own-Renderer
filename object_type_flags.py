@@ -1,2 +1,6 @@
 SPHERE = 1
 
+TRIANGLE = 2
+
+
+

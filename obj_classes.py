@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from object_type_flags import *
 
 
@@ -12,7 +13,7 @@ class Scene:
         """Controls image resolution"""
         self.cw: int = cw
         self.ch: int = ch
-        self.img = np.ones((ch, cw, 3), dtype=np.float64)
+        self.img = np.zeros((ch, cw, 3), dtype=np.float64)
 
         """Controls FOV"""
         self.vw = vw
@@ -33,8 +34,13 @@ class Scene:
         self.ref_idxs = None
         self.absorptions = None
 
+        """Sphere Stuff"""
         self.sphere_centers = None
         self.sphere_radii = None
+
+        """Triangle Stuff"""
+        self.triangles = None
+        self.triangle_normals = None
 
 
     def add_objects(self, *args):
@@ -60,8 +66,12 @@ class Scene:
         absorptions = np.zeros(len(self.objects), dtype=np.float64)
 
         """Sphere data"""
-        sphere_centers = np.zeros((len(self.objects), 3))
-        sphere_radii = np.zeros(len(self.objects))
+        sphere_centers = np.zeros((len(self.objects), 3), dtype=np.float64)
+        sphere_radii = np.zeros(len(self.objects), dtype=np.float64)
+
+        """Triangle Data"""
+        triangles = np.zeros((len(self.objects), 3, 3), dtype=np.float64)
+        triangle_normals = np.zeros((len(self.objects), 3), dtype=np.float64)
 
         for i, obj in enumerate(self.objects):
 
@@ -85,6 +95,11 @@ class Scene:
                 sphere_radii[i] = obj.r
                 sphere_centers[i] = obj.C
 
+            elif type(obj) == Triangle:
+                obj_types[i] = TRIANGLE
+                triangles[i] = obj.ABC
+                triangle_normals[i] = obj.normal
+
         self.obj_types = obj_types
         self.colors = colors
         self.emitted_colors = emitted_colors
@@ -96,6 +111,9 @@ class Scene:
 
         self.sphere_centers = sphere_centers
         self.sphere_radii = sphere_radii
+
+        self.triangles = triangles
+        self.triangle_normals = triangle_normals
 
 
 class Sphere:
@@ -109,3 +127,36 @@ class Sphere:
         self.is_glass = is_glass
         self.ref_idx = ref_idx
         self.absorption = absorption
+
+
+class Triangle:
+    def __init__(self, ABC: np.ndarray, color, emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1, absorption=0):
+        self.ABC = ABC
+        self.normal = self.compute_normal()
+        self.color = color / 255
+        self.emitted_color = emitted_color / 255
+        self.emission_strength = emission_strength
+        self.smoothness = smoothness
+        self.is_glass = is_glass
+        self.ref_idx = ref_idx
+        self.absorption = absorption
+
+    def compute_normal(self):
+        AB = self.ABC[1] - self.ABC[0]
+        AC = self.ABC[2] - self.ABC[0]
+
+        def cross(v1, v2) -> np.ndarray[3]:
+            x = v1[1] * v2[2] - v1[2] * v2[1]
+            y = v1[2] * v2[0] - v1[0] * v2[2]
+            z = v1[0] * v2[1] - v1[1] * v2[0]
+            return np.array([x, y, z], dtype=np.float64)
+
+        def norm(v) -> float:
+            return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+
+
+        n = cross(AB, AC)
+        n /= norm(n)
+        return n
+
+

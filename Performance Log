@@ -21,3 +21,6 @@ Fully Numba compiled
 
 Monte carlo raytracing benchmark scene
 0.84s
+
+With Triangles and no arrays in closest_intersection
+0.61s
