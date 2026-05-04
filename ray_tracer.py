@@ -119,7 +119,7 @@ def find_intersections_triangle(A, B, C, O, D):
     return t
 
 
-@njit
+@njit(fastmath=True)
 def find_intersections_sphere(C: np.ndarray[3], r: float, O, D) -> np.ndarray:
     """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
     CO = O - C
@@ -143,7 +143,7 @@ def find_intersections_sphere(C: np.ndarray[3], r: float, O, D) -> np.ndarray:
         return l1
 
 
-@njit
+@njit(fastmath=True)
 def closest_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_centers, sphere_radii, triangles, triangle_normals, t_min, t_max) -> tuple:
     """
     Finds the closest intersection between a ray and any object
@@ -288,6 +288,9 @@ def trace_ray(
     """Traces a ray"""
     incoming_light = np.zeros(3, dtype=np.float64)
     ray_color = np.ones(3, dtype=np.float64)
+
+    # Normalize D, from here on D should always be normalized
+    D /= norm(D)
 
     for i in range(bounces_left):
         # Multiple ray bounces are now implemented iteratively for small performance gain
@@ -711,11 +714,7 @@ def render_scene_over_time(scene) -> None:
         cur_img = cur_img * (1 - weight) + scene.img * weight
         i += 1
         if i % update_frequency == 0:
-            # Set NaNs to pink
-            mask = np.isnan(cur_img).any(axis=2)
-            img[mask] = np.array([1.0, 0.0, 1.0])
-            img_display.set_data(cur_img)
-            #img_display.set_data(np.power(cur_img, 0.45)) # 0.45
+            img_display.set_data(np.power(cur_img, 0.45)) # 0.45
             ax.set_title(f"Resolution: {scene.cw}x{scene.ch} | Rays per pixel: {i}")
             fig.canvas.draw_idle()
             fig.canvas.flush_events()

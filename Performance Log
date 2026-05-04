@@ -24,3 +24,11 @@ Monte carlo raytracing benchmark scene
 
 With Triangles and no arrays in closest_intersection
 0.61s
+
+Early exit for Sphere intersection
+0.59s
+
+Fastmath in Sphere intersection
+0.59s (more consistent)
+
+Fas
