@@ -94,11 +94,25 @@ showcase_scene.add_objects(
         center=np.array([2, -2, 20]),
         radius=2,
         color=np.array([0, 0, 255])
-    ),
+    ))
+""",
      Triangle(
             ABC=np.array([[-4, -4, 14],
                           [4, -4, 14],
                           [0, 4, 14]], dtype=np.float64),
             color=np.array([255, 0, 0])
         )
+)
+"""
+
+"""Empty Scene"""
+empty_scene = Scene(
+cw = 450,
+ch = 300,
+vw = 1.5,
+vh = 1,
+d = 1,
+O = np.array([0, 0, 0], dtype=np.float64),
+max_rec_depth=5,
+rays_per_pixel=1_000_000
 )

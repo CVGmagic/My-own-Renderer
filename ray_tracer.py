@@ -5,6 +5,7 @@ from numba import njit, prange
 from object_type_flags import *
 from obj_classes import *
 from saved_scenes import benchmark_scene
+from xoshiro import xoshiro
 
 
 @njit
@@ -119,7 +120,7 @@ def find_intersections_triangle(A, B, C, O, D):
     return t
 
 
-@njit(fastmath=True)
+@njit
 def find_intersections_sphere(C: np.ndarray[3], r: float, O, D) -> np.ndarray:
     """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
     CO = O - C
@@ -136,14 +137,14 @@ def find_intersections_sphere(C: np.ndarray[3], r: float, O, D) -> np.ndarray:
 
     l2 = (-b - sqrt_disc) / (2 * a)
 
-    if l2 > 0: # If l2 is > 0, it is always the better solution
+    if l2 > 0.001: # If l2 is > 0, it is always the better solution
         return l2
     else:
         l1 = (-b + sqrt_disc) / (2 * a)
         return l1
 
 
-@njit(fastmath=True)
+@njit
 def closest_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_centers, sphere_radii, triangles, triangle_normals, t_min, t_max) -> tuple:
     """
     Finds the closest intersection between a ray and any object
@@ -156,6 +157,7 @@ def closest_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_c
         if obj_types[obj] == SPHERE:
             t = find_intersections_sphere(sphere_centers[obj], sphere_radii[obj], O, D)
         elif obj_types[obj] == TRIANGLE:
+            raise ValueError
             ABC = triangles[obj]
             n = triangle_normals[obj]
             t = find_intersections_triangle(ABC[0], ABC[1], ABC[2], O, D)
@@ -224,7 +226,7 @@ def random_hemisphere_direction(N: np.ndarray[3]) -> np.ndarray[3]:
     return np.array([x * b1x + y * b2x, x * b1y + y * b2y, x * b1z + y * b2z], dtype=np.float64) + z * N
 
 
-@njit(fastmath=True)
+@njit
 def random_cos_weighted_hemisphere_direction(N: np.ndarray[3], rand_state) -> np.ndarray[3]:
     """Returns a normed vetor pointing in a random direction (cosine weighted) in
     a hemisphere"""
@@ -294,7 +296,7 @@ def trace_ray(
 
     for i in range(bounces_left):
         # Multiple ray bounces are now implemented iteratively for small performance gain
-        obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, triangles, triangle_normals, t_min=0.001, t_max=np.inf)
+        obj, t = closest_intersection(O, D, obj_types, sphere_centers, sphere_radii, triangles, triangle_normals, t_min=0.01, t_max=np.inf)
 
         if obj == -1: # No object found
             incoming_light += get_environment_lighting(D) * ray_color
@@ -319,7 +321,6 @@ def trace_ray(
                 N = -N # Flip normal vector, because that's what functions expect
                 transmittance = np.exp(-colors[obj] * absorptions[obj] * norm(D) * t)
                 ray_color *= transmittance
-
 
             reflection_chance = compute_reflection_fresnel(D, N, n_cur, n_new)
             if np.random.random() < reflection_chance: # Reflect ray
@@ -378,7 +379,12 @@ def refract_ray(R, N, n_cur, n_new) -> np.ndarray[3]:
     R_hat = R / norm(R)
     eta = n_cur / n_new
     cos_theta_1 = dot(-R_hat, N)
-    cos_theta_2 = math.sqrt(1 - eta**2 * (1 - cos_theta_1**2))
+
+    k = 1 - eta**2 * (1 - cos_theta_1**2)
+    if k < 0: # If angle is too shallow, total reflection
+        return reflect_ray(R, N)
+
+    cos_theta_2 = math.sqrt(k)
     T = eta * R_hat + (eta * cos_theta_1 - cos_theta_2) * N
     return T
 
@@ -393,17 +399,21 @@ def compute_reflection_fresnel(R, N, n_cur, n_new) -> float:
 
 @njit
 def get_environment_lighting(D):
-    """Gets an environment color in case the ray misses everything"""
     if True:
-        return np.zeros(3, dtype=np.float64)
-    ground_color = np.array([0.6, 0.6, 0.6], dtype=np.float64)
-    sky_color = np.array([86, 205, 255], dtype=np.float64) / 255
+        return np.array([0, 0, 0], dtype=np.float64)
 
-    # TODO Make a nice sky gradient
-    if D[1] < -0.3:
+    """Gets an environment color in case the ray misses everything"""
+    ground_color = np.array([0.3, 0.3, 0.3], dtype=np.float64) # Gray
+    sky_color = np.array([0.1, 0.3, 0.8], dtype=np.float64) # Dark Blue
+    horizon_color = np.array([1.0, 1.0, 1.0], dtype=np.float64)
+
+    # TODO Add a Sun
+
+    if D[1] < 0:
         return ground_color
     else:
-        return sky_color
+        t = D[1]
+        return sky_color * t + horizon_color * (1 - t)
 
 
 @njit(fastmath=True)
