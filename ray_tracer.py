@@ -9,7 +9,7 @@ from xoshiro import xoshiro
 
 
 @njit
-def canvas_to_screen(cx: int, cy: int, cw: int, ch: int) -> tuple[int]:
+def canvas_to_screen(cx: int, cy: int, cw: int, ch: int) -> tuple[int, int]:
     """Converts canvas coordinates to screen coordinates"""
     cx += cw // 2
     cy *= -1
@@ -121,7 +121,7 @@ def find_intersections_triangle(A, B, C, O, D):
 
 
 @njit
-def find_intersections_sphere(C: np.ndarray[3], r: float, O, D) -> np.ndarray:
+def find_intersections_sphere(C: np.ndarray[3], r: float, O, D) -> float:
     """Finds the possible scalars for the ray. Invalid solutions return np.nan"""
     CO = O - C
     a = np.dot(D, D)
