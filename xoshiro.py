@@ -8,7 +8,7 @@ def rotl(a, w):
 
 
 @njit
-def xoshiro(s):
+def xoshiro(s) -> np.uint64:
     """Uses Xoshiro to generate PRNs"""
     res = np.uint64(s[0] + s[3])
 
@@ -21,6 +21,11 @@ def xoshiro(s):
     s[3] = rotl(s[3], 45)
 
     return res
+
+
+@njit
+def rand_xoshiro(s) -> float:
+    return xoshiro(s) / 18446744073709551616.0
 
 
 s = np.zeros(4, dtype=np.uint64)
