@@ -117,7 +117,7 @@ class Scene:
 
 
 class Sphere:
-    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1, absorption=0):
+    def __init__(self, center: np.ndarray, radius: float, color=np.array([0, 0, 0]), emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1.4, absorption=0):
         self.C = center
         self.r = radius
         self.color = color / 255
@@ -130,7 +130,7 @@ class Sphere:
 
 
 class Triangle:
-    def __init__(self, ABC: np.ndarray, color, emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1, absorption=0):
+    def __init__(self, ABC: np.ndarray, color, emitted_color=np.array([0, 0, 0]), emission_strength=0, smoothness=0, is_glass=False, ref_idx=1.4, absorption=0):
         self.ABC = ABC
         self.normal = self.compute_normal()
         self.color = color / 255

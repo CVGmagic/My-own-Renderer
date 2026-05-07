@@ -70,7 +70,7 @@ showcase_scene.add_objects(
             smoothness=1 # reflective
            ),
     Sphere(
-            center=np.array([0, -2, 16]),
+            center=np.array([0, 10, 16]),
             radius=2,
             color=np.array([0, 255, 238]), # Turquoise
             smoothness=0,
@@ -94,16 +94,45 @@ showcase_scene.add_objects(
         center=np.array([2, -2, 20]),
         radius=2,
         color=np.array([0, 0, 255])
-    ))
-""",
-     Triangle(
-            ABC=np.array([[-4, -4, 14],
-                          [4, -4, 14],
-                          [0, 4, 14]], dtype=np.float64),
-            color=np.array([255, 0, 0])
-        )
+    )
 )
-"""
+
+pyramid = np.array([
+    # base
+    [[-0.3660254, 0.0,  1.3660254],
+     [ 0.3660254, 0.0, -1.3660254],
+     [ 1.3660254, 0.0,  0.3660254]],
+
+    [[-0.3660254, 0.0,  1.3660254],
+     [-1.3660254, 0.0, -0.3660254],
+     [ 0.3660254, 0.0, -1.3660254]],
+
+    # sides
+    [[-0.3660254, 0.0,  1.3660254],
+     [ 1.3660254, 0.0,  0.3660254],
+     [ 0.0,        1.5,  0.0]],
+
+    [[ 1.3660254, 0.0,  0.3660254],
+     [ 0.3660254, 0.0, -1.3660254],
+     [ 0.0,        1.5,  0.0]],
+
+    [[ 0.3660254, 0.0, -1.3660254],
+     [-1.3660254, 0.0, -0.3660254],
+     [ 0.0,        1.5,  0.0]],
+
+    [[-1.3660254, 0.0, -0.3660254],
+     [-0.3660254, 0.0,  1.3660254],
+     [ 0.0,        1.5,  0.0]],
+], dtype=np.float64)
+
+
+for triangle in pyramid:
+    temp = Triangle(triangle*2 + np.array([0, -2, 16]),
+                    color=np.array([255, 0, 0]),
+                    is_glass=True,
+                    ref_idx=1.4)
+    showcase_scene.add_objects(temp)
+
 
 """Empty Scene"""
 empty_scene = Scene(

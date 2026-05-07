@@ -157,7 +157,6 @@ def closest_intersection(O: np.ndarray[3], D: np.ndarray[3], obj_types, sphere_c
         if obj_types[obj] == SPHERE:
             t = find_intersections_sphere(sphere_centers[obj], sphere_radii[obj], O, D)
         elif obj_types[obj] == TRIANGLE:
-            raise ValueError
             ABC = triangles[obj]
             n = triangle_normals[obj]
             t = find_intersections_triangle(ABC[0], ABC[1], ABC[2], O, D)
@@ -292,7 +291,8 @@ def trace_ray(
     ray_color = np.ones(3, dtype=np.float64)
 
     # Normalize D, from here on D should always be normalized
-    D /= norm(D)
+    norm_D = norm(D)
+    D /= norm_D
 
     for i in range(bounces_left):
         # Multiple ray bounces are now implemented iteratively for small performance gain
@@ -319,7 +319,7 @@ def trace_ray(
                 n_new = 1.0
                 n_cur = ref_idxs[obj]
                 N = -N # Flip normal vector, because that's what functions expect
-                transmittance = np.exp(-colors[obj] * absorptions[obj] * norm(D) * t)
+                transmittance = np.exp(-colors[obj] * absorptions[obj] * t) # * norm(D), but that's always 1
                 ray_color *= transmittance
 
             reflection_chance = compute_reflection_fresnel(D, N, n_cur, n_new)
@@ -376,22 +376,25 @@ def cross(v1, v2) -> np.ndarray[3]:
 
 @njit(fastmath=True)
 def refract_ray(R, N, n_cur, n_new) -> np.ndarray[3]:
-    R_hat = R / norm(R)
+    """
+    Takes in a normed vector R, a surface normal and the two refractive indices
+    and returns the direction of the refraction
+    """
     eta = n_cur / n_new
-    cos_theta_1 = dot(-R_hat, N)
+    cos_theta_1 = dot(-R, N)
 
     k = 1 - eta**2 * (1 - cos_theta_1**2)
     if k < 0: # If angle is too shallow, total reflection
         return reflect_ray(R, N)
 
     cos_theta_2 = math.sqrt(k)
-    T = eta * R_hat + (eta * cos_theta_1 - cos_theta_2) * N
+    T = eta * R + (eta * cos_theta_1 - cos_theta_2) * N
     return T
 
 
 @njit(fastmath=True)
 def compute_reflection_fresnel(R, N, n_cur, n_new) -> float:
-    cos_phi = dot(-R, N) / norm(R)
+    cos_phi = dot(-R, N)
     sqrt_R_0 = (n_cur - n_new) / (n_cur + n_new)
     R_0 = sqrt_R_0 * sqrt_R_0
     return R_0 + (1 - R_0) * (1 - cos_phi)**5
@@ -399,7 +402,7 @@ def compute_reflection_fresnel(R, N, n_cur, n_new) -> float:
 
 @njit
 def get_environment_lighting(D):
-    if True:
+    if False:
         return np.array([0, 0, 0], dtype=np.float64)
 
     """Gets an environment color in case the ray misses everything"""
