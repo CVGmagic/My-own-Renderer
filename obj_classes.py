@@ -1,12 +1,12 @@
 import numpy as np
 import math
 from object_type_flags import *
+from HDRI_setup import default_hdri
 
 
 class Scene:
-    def __init__(self, cw, ch, vw, vh, d, O, max_rec_depth=3, rays_per_pixel=1):
+    def __init__(self, cw, ch, vw, vh, d, O, hdri=default_hdri, max_rec_depth=3, rays_per_pixel=1):
         self.objects = []
-        self.lights = []
         self.max_rec_depth = max_rec_depth
         self.rays_per_pixel = rays_per_pixel
 
@@ -47,10 +47,6 @@ class Scene:
         for obj in args:
             self.objects.append(obj)
 
-
-    def add_lights(self, *args):
-        for light in args:
-            self.lights.append(light)
 
 
     def compile(self):

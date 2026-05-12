@@ -53,8 +53,8 @@ vw = 1.5,
 vh = 1,
 d = 1,
 O = np.array([0, 0, 0], dtype=np.float64),
-max_rec_depth=5,
-rays_per_pixel=1_000_000
+max_rec_depth=7,
+rays_per_pixel=1_000_000,
 )
 
 showcase_scene.add_objects(

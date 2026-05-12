@@ -291,8 +291,7 @@ def trace_ray(
     ray_color = np.ones(3, dtype=np.float64)
 
     # Normalize D, from here on D should always be normalized
-    norm_D = norm(D)
-    D /= norm_D
+    D /= norm(D)
 
     for i in range(bounces_left):
         # Multiple ray bounces are now implemented iteratively for small performance gain
@@ -319,7 +318,7 @@ def trace_ray(
                 n_new = 1.0
                 n_cur = ref_idxs[obj]
                 N = -N # Flip normal vector, because that's what functions expect
-                transmittance = np.exp(-colors[obj] * absorptions[obj] * t) # * norm(D), but that's always 1
+                transmittance = np.exp(-colors[obj] * absorptions[obj] * t)
                 ray_color *= transmittance
 
             reflection_chance = compute_reflection_fresnel(D, N, n_cur, n_new)
@@ -419,12 +418,9 @@ def get_environment_lighting(D):
         return sky_color * t + horizon_color * (1 - t)
 
 
-@njit(fastmath=True)
-def rand(state) -> float:
-    """Generates a random number between 0 and 1 and changes the state"""
-    # TODO Random function has visible patterns
-    state[0] = (1664525 * state[0] + 1013904223) & 0xFFFFFFFF
-    return state[0] / 4294967296.0
+@njit
+def get_hdri(D):
+    pass
 
 
 def benchmark(scene, runs=10, warmup=2):
@@ -482,7 +478,8 @@ def benchmark(scene, runs=10, warmup=2):
             sphere_centers=sphere_centers,
             sphere_radii=sphere_radii,
             triangles=scene.triangles,
-            triangle_normals=scene.triangle_normals
+            triangle_normals=scene.triangle_normals,
+            hdri=scene.hdri
         )
 
     print("Warmup complete, beginning benchmarking")
@@ -547,7 +544,8 @@ def fill_image(
         sphere_centers,
         sphere_radii,
         triangles,
-        triangle_normals
+        triangle_normals,
+        hdri
 ) -> None:
     """Fills the image in"""
     for i in prange(cw * ch):
@@ -559,8 +557,7 @@ def fill_image(
         cy = (ch // 2) - y_idx
 
         # Continue tracing like normal
-        V = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
-        D = V - O
+        D = canvas_to_viewport(cx, cy, cw, ch, vw, vh, d)
 
         # Generates a seed for the randomizer for each pixel
         rand_state = np.array([(i * 9781 + 1) & 0xFFFFFFFF], dtype=np.uint32)
@@ -641,7 +638,8 @@ def render_scene(scene) -> None:
         sphere_centers=sphere_centers,
         sphere_radii=sphere_radii,
         triangles=scene.triangles,
-        triangle_normals=scene.triangle_normals
+        triangle_normals=scene.triangle_normals,
+        hdri=scene.hdri
     )
     # Removes axis ticks
     plt.tick_params(left=False,
@@ -721,7 +719,8 @@ def render_scene_over_time(scene) -> None:
             sphere_centers=sphere_centers,
             sphere_radii=sphere_radii,
             triangles=scene.triangles,
-            triangle_normals=scene.triangle_normals
+            triangle_normals=scene.triangle_normals,
+            hdri=scene.hdri
         )
         weight = 1 / (i + 1)
         cur_img = cur_img * (1 - weight) + scene.img * weight
@@ -732,8 +731,4 @@ def render_scene_over_time(scene) -> None:
             fig.canvas.draw_idle()
             fig.canvas.flush_events()
             plt.pause(1e-32)
-
-
-
-
 
